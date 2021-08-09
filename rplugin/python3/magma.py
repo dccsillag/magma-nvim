@@ -353,7 +353,7 @@ class MagmaBuffer:
             )
 
         if self.current_output is not None:
-            self._show_outputs(self.current_output)
+            self._show_outputs(self.outputs[span])
 
 
 @pynvim.plugin
