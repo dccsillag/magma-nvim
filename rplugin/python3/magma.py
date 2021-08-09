@@ -9,6 +9,20 @@ from pynvim import Nvim
 import jupyter_client
 
 
+class MagmaException(Exception):
+    pass
+
+
+def nvimui(func):
+    def inner(self, *args, **kwargs):
+        try:
+            func(self, *args, **kwargs)
+        except MagmaException as err:
+            self.nvim.err_write("[Magma] " + str(err) + "\n")
+
+    return inner
+
+
 class Position:
     bufno: int
     lineno: int
@@ -389,14 +403,18 @@ class Magma:
         if not self.initialized:
             self._initialize()
 
-    def _get_magma(self) -> Optional[MagmaBuffer]:
-        return self.buffers.get(self.nvim.current.buffer.number)
+    def _get_magma(self, requires_instance: bool) -> Optional[MagmaBuffer]:
+        maybe_magma = self.buffers.get(self.nvim.current.buffer.number)
+        if requires_instance and maybe_magma is None:
+            raise MagmaException("Magma is not initialized; run `:MagmaInit <kernel_name>` to initialize.")
+        return maybe_magma
 
     @pynvim.command('MagmaTick', sync=True)
+    @nvimui
     def tick(self) -> None:
         self._initialize_if_necessary()
 
-        magma = self._get_magma()
+        magma = self._get_magma(False)
         if magma is None:
             return
 
@@ -406,13 +424,14 @@ class Magma:
         if not self.initialized:
             return
 
-        magma = self._get_magma()
+        magma = self._get_magma(False)
         if magma is None:
             return
 
         magma.on_cursor_move()
 
     @pynvim.command("MagmaInit", nargs=1, sync=True)
+    @nvimui
     def command_init(self, args: List[str]) -> None:
         self._initialize_if_necessary()
 
@@ -429,9 +448,8 @@ class Magma:
     def _do_evaluate(self, pos: Tuple[Tuple[int, int], Tuple[int, int]]) -> None:
         self._initialize_if_necessary()
 
-        magma = self._get_magma()
-        if magma is None:
-            return # TODO show an error
+        magma = self._get_magma(True)
+        assert magma is not None
 
         bufno = self.nvim.current.buffer.number
         span = Span(DynamicPosition(self.nvim, self.extmark_namespace, bufno, *pos[0]),
@@ -442,6 +460,7 @@ class Magma:
         magma.run_code(code, span)
 
     @pynvim.command("MagmaEvaluateVisual", sync=True)
+    @nvimui
     def command_evaluate_visual(self) -> None:
         _, lineno_begin, colno_begin, _ = self.nvim.funcs.getpos("'<")
         _, lineno_end,   colno_end,   _ = self.nvim.funcs.getpos("'>")
@@ -451,6 +470,7 @@ class Magma:
         self._do_evaluate(span)
 
     @pynvim.command("MagmaEvaluateFromOperator", nargs=1, sync=True)
+    @nvimui
     def command_evaluate_from_marks(self, kind) -> None:
         kind = kind[0]
 
@@ -464,11 +484,15 @@ class Magma:
             raise ValueError(f"bad type for MagmaEvaluateFromOperator: {kind}")
 
     @pynvim.command("MagmaEvaluateOperator", sync=True)
+    @nvimui
     def command_evaluate_operator(self) -> None:
+        self._initialize_if_necessary()
+
         self.nvim.options['operatorfunc'] = 'g:MagmaOperatorfunc'
         self.nvim.feedkeys('g@')
 
     @pynvim.command("MagmaEvaluateLine", nargs=0, sync=True)
+    @nvimui
     def command_evaluate_line(self) -> None:
         _, lineno, _, _, _ = self.nvim.funcs.getcurpos()
         lineno -= 1
@@ -478,9 +502,11 @@ class Magma:
         self._do_evaluate(span)
 
     @pynvim.autocmd('CursorMoved', sync=True)
+    @nvimui
     def autocmd_cursormoved(self):
         self._on_cursor_moved()
 
     @pynvim.autocmd('CursorMovedI', sync=True)
+    @nvimui
     def autocmd_cursormovedi(self):
         self._on_cursor_moved()
