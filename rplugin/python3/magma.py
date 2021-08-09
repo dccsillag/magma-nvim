@@ -18,8 +18,8 @@ from pynvim.api import Buffer
 from pynvim import Nvim
 import jupyter_client
 import ueberzug.lib.v0 as ueberzug
-# FIXME: this is not really in Ueberzug's public API.
-# We should move this function into this code.
+# FIXME: This is not really in Ueberzug's public API.
+#        We should move this function into this codebase.
 from ueberzug.process import get_pty_slave
 from PIL import Image
 
