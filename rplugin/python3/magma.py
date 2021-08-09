@@ -161,6 +161,7 @@ class JupyterRuntime:
             if message_type == 'status':
                 if content['execution_state'] == 'idle':
                     self.state = RuntimeState.IDLE
+                    output.done = True
                     return True
                 else:
                     return False
