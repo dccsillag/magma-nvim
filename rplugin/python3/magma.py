@@ -253,6 +253,10 @@ class MagmaBuffer:
         self.display_buffer = self.nvim.buffers[self.nvim.funcs.nvim_create_buf(False, True)]
         self.display_window = None
 
+    def _buffer_to_window_lineno(self, lineno: int) -> int:
+        win_top = self.nvim.funcs.line('w0')
+        return lineno - win_top + 1
+
     def run_code(self, code: str, span: Optional[Span]):
         self.current_output = self.runtime.run_code(code)
         if span is not None:
@@ -269,24 +273,26 @@ class MagmaBuffer:
             if did_stuff:
                 self._update_interface()
 
-    def _show_outputs(self, output: Output):
+    def _show_outputs(self, output: Output, anchor: Position):
         # Clear buffer:
         self.nvim.funcs.deletebufline(self.display_buffer.number, 1, '$')
         # Add output chunks to buffer
         lines = "\n\n".join(chunk.to_text() for chunk in output.chunks).strip().split("\n")
         self.display_buffer.append(lines, index=0)
 
-        cur_lineno, cur_colno = self.nvim.funcs.nvim_win_get_cursor(0)
+        win_width  = self.nvim.current.window.width
+        win_height = self.nvim.current.window.height
+        win_row = self._buffer_to_window_lineno(anchor.lineno+1)
         assert self.display_window is None
         self.display_window = self.nvim.funcs.nvim_open_win(
             self.display_buffer.number,
             False,
             {
-                'relative': 'win', # TODO use anchor
-                'col': cur_colno,
-                'row': cur_lineno,
-                'width': 30, # TODO consider the terminal width
-                'height': min(30, len(lines)), # TODO consider the terminal height
+                'relative': 'win',
+                'col': 0,
+                'row': win_row,
+                'width': win_width,
+                'height': min(win_height - win_row, len(lines)),
                 'anchor': 'NW',
                 'style': 'minimal',
             }
@@ -363,7 +369,7 @@ class MagmaBuffer:
             )
 
         if self.current_output is not None:
-            self._show_outputs(self.outputs[span])
+            self._show_outputs(self.outputs[span], span.end)
 
 
 @pynvim.plugin
