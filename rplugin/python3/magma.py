@@ -140,41 +140,61 @@ class JupyterRuntime:
 
         return Output(None)
 
-    def _tick_one(self, output: Output, message_type: str, content: dict) -> None:
+    def _tick_one(self, output: Output, message_type: str, content: dict) -> bool:
         if self.state == RuntimeState.IDLE:
             if message_type == 'execute_input':
                 self.state = RuntimeState.RUNNING
                 output.execution_count = content['execution_count']
+                return True
+            else:
+                return False
         elif self.state == RuntimeState.RUNNING:
             if message_type == 'status':
                 if content['execution_state'] == 'idle':
                     self.state = RuntimeState.IDLE
+                    return True
+                else:
+                    return False
             elif message_type == 'execute_reply':
                 if content['status'] == 'ok':
                     output.chunks.append(TextOutputChunk(content['status']))
+                    return True
                 elif content['status'] == 'error':
                     # TODO improve error formatting (in particular, use content['traceback'])
                     output.chunks.append(TextOutputChunk(
                         f"[Error] {content['ename']}: {content['evalue']}"
                     ))
+                    return True
                 elif content['status'] == 'abort':
                     # TODO improve error formatting
                     output.chunks.append(TextOutputChunk(
                         f"<Kernel aborted with no error message>."
                     ))
+                    return True
+                else:
+                    return False
             elif message_type == 'execute_result':
                 if (text := content['data'].get('text/plain')) is not None:
                     output.chunks.append(TextOutputChunk(text))
+                    return True
+                else:
+                    return False
             elif message_type == 'error':
                 output.chunks.append(TextOutputChunk(
                     f"[Error] {content['ename']}: {content['evalue']}"
                 ))
+                return True
             elif message_type == 'stream':
                 output.chunks.append(TextOutputChunk(content['text']))
+                return True
+            else:
+                return False
         else:
             raise RuntimeError(f"bad RuntimeState: {self.state}")
 
-    def tick(self, output: Output) -> None:
+    def tick(self, output: Output) -> bool:
+        did_stuff = False
+
         while True:
             try:
                 assert isinstance(self.kernel_client, jupyter_client.blocking.client.BlockingKernelClient)
@@ -183,9 +203,12 @@ class JupyterRuntime:
                 if 'content' not in message or 'msg_type' not in message:
                     continue
 
-                self._tick_one(output, message['msg_type'], message['content'])
+                did_stuff_now = self._tick_one(output, message['msg_type'], message['content'])
+                did_stuff = did_stuff or did_stuff_now
             except EmptyQueueException:
                 break
+
+        return did_stuff
 
 
 class MagmaBuffer:
@@ -232,7 +255,9 @@ class MagmaBuffer:
 
     def tick(self):
         if self.current_output:
-            self.runtime.tick(self.current_output)
+            did_stuff = self.runtime.tick(self.current_output)
+            if did_stuff:
+                self._update_interface()
 
     def _show_outputs(self, output: Output):
         # Clear buffer:
@@ -272,7 +297,7 @@ class MagmaBuffer:
             self.nvim.funcs.nvim_win_close(self.display_window, True)
             self.display_window = None
 
-    def on_cursor_move(self) -> None:
+    def _update_interface(self) -> None:
         self._clear_interface()
 
         current_position = self._get_cursor_position()
@@ -284,6 +309,9 @@ class MagmaBuffer:
 
         if selected is not None:
             self._show_selected(selected)
+
+    def on_cursor_move(self) -> None:
+        self._update_interface()
 
     def _show_selected(self, span: Span) -> None:
         # TODO: get a better highlight group
