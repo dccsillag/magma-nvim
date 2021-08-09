@@ -1,7 +1,7 @@
 from typing import Union, Optional, Tuple, Dict, List
 from abc import ABC, abstractmethod
 from enum import Enum
-from queue import Empty as EmptyQueueException
+from queue import Empty as EmptyQueueException, Queue
 
 import pynvim
 from pynvim.api import Buffer
@@ -158,61 +158,80 @@ class JupyterRuntime:
         return Output(None)
 
     def _tick_one(self, output: Output, message_type: str, content: dict) -> bool:
-        if self.state == RuntimeState.IDLE:
-            if message_type == 'execute_input':
-                self.state = RuntimeState.RUNNING
-                output.execution_count = content['execution_count']
+        if message_type == 'execute_input':
+            output.execution_count = content['execution_count']
+            assert output.status != OutputStatus.DONE
+            if output.status == OutputStatus.HOLD:
                 output.status = OutputStatus.RUNNING
+            elif output.status == OutputStatus.RUNNING:
+                output.status = OutputStatus.DONE
+            else:
+                raise ValueError("bad value for output.status: %r" % output.status)
+            return True
+        elif message_type == 'status':
+            execution_state = content['execution_state']
+            if execution_state == 'idle':
+                self.state = RuntimeState.IDLE
+                output.status = OutputStatus.DONE
                 return True
+            elif execution_state == 'busy':
+                self.state = RuntimeState.RUNNING
+                return True
+            # TODO execution_state == 'starting'
             else:
                 return False
-        elif self.state == RuntimeState.RUNNING:
-            if message_type == 'status':
-                if content['execution_state'] == 'idle':
-                    self.state = RuntimeState.IDLE
-                    output.status = OutputStatus.DONE
-                    return True
-                else:
-                    return False
-            elif message_type == 'execute_reply':
-                if content['status'] == 'ok':
-                    output.chunks.append(TextOutputChunk(content['status']))
-                    return True
-                elif content['status'] == 'error':
-                    # TODO improve error formatting (in particular, use content['traceback'])
-                    output.chunks.append(TextOutputChunk(
-                        f"[Error] {content['ename']}: {content['evalue']}"
-                    ))
-                    output.success = False
-                    return True
-                elif content['status'] == 'abort':
-                    # TODO improve error formatting
-                    output.chunks.append(TextOutputChunk(
-                        f"<Kernel aborted with no error message>."
-                    ))
-                    output.success = False
-                    return True
-                else:
-                    return False
-            elif message_type == 'execute_result':
-                if (text := content['data'].get('text/plain')) is not None:
-                    output.chunks.append(TextOutputChunk(text))
-                    return True
-                else:
-                    return False
-            elif message_type == 'error':
+        elif message_type == 'execute_reply':
+            if content['status'] == 'ok':
+                output.chunks.append(TextOutputChunk(content['status']))
+                return True
+            elif content['status'] == 'error':
+                # TODO improve error formatting (in particular, use content['traceback'])
                 output.chunks.append(TextOutputChunk(
                     f"[Error] {content['ename']}: {content['evalue']}"
                 ))
                 output.success = False
                 return True
-            elif message_type == 'stream':
-                output.chunks.append(TextOutputChunk(content['text']))
+            elif content['status'] == 'abort':
+                # TODO improve error formatting
+                output.chunks.append(TextOutputChunk(
+                    f"<Kernel aborted with no error message>."
+                ))
+                output.success = False
                 return True
             else:
                 return False
+        elif message_type == 'execute_result':
+            if (text := content['data'].get('text/plain')) is not None:
+                output.chunks.append(TextOutputChunk(text))
+                return True
+            else:
+                return False
+        elif message_type == 'error':
+            output.chunks.append(TextOutputChunk(
+                f"[Error] {content['ename']}: {content['evalue']}"
+            ))
+            output.success = False
+            return True
+        elif message_type == 'stream':
+            output.chunks.append(TextOutputChunk(content['text']))
+            return True
+        elif message_type == 'display_data':
+            # TODO: consider content['transient']
+            if (text := content['data'].get('text/plain')) is not None:
+                output.chunks.append(TextOutputChunk(text))
+                return True
+            else:
+                return False
+        elif message_type == 'update_display_data':
+            # We don't really want to bother with this type of message.
+            return False
+        elif message_type == 'clear_output':
+            # TODO: content['wait']
+            output.chunks.clear()
+            return True
+        # TODO: message_type == 'debug'?
         else:
-            raise RuntimeError(f"bad RuntimeState: {self.state}")
+            return False
 
     def tick(self, output: Output) -> bool:
         did_stuff = False
@@ -227,6 +246,9 @@ class JupyterRuntime:
 
                 did_stuff_now = self._tick_one(output, message['msg_type'], message['content'])
                 did_stuff = did_stuff or did_stuff_now
+
+                if output.status == OutputStatus.DONE:
+                    break
             except EmptyQueueException:
                 break
 
@@ -243,6 +265,7 @@ class MagmaBuffer:
 
     outputs: Dict[Span, Output]
     current_output: Optional[Output]
+    queued_outputs: Queue[Output]
 
     display_buffer: Buffer
     display_window: Optional[int]
@@ -262,6 +285,7 @@ class MagmaBuffer:
 
         self.outputs = {}
         self.current_output = None
+        self.queued_outputs = Queue()
 
         self.display_buffer = self.nvim.buffers[self.nvim.funcs.nvim_create_buf(False, True)]
         self.display_window = None
@@ -270,17 +294,29 @@ class MagmaBuffer:
         win_top = self.nvim.funcs.line('w0')
         return lineno - win_top + 1
 
-    def run_code(self, code: str, span: Optional[Span]):
-        self.current_output = self.runtime.run_code(code)
-        if span is not None:
-            assert self.current_output is not None
-            if span in self.outputs:
-                del self.outputs[span]
-            self.outputs[span] = self.current_output
+    def run_code(self, code: str, span: Span) -> None:
+        new_output = self.runtime.run_code(code)
+        if span in self.outputs:
+            del self.outputs[span]
+        self.outputs[span] = new_output
+
+        self.queued_outputs.put(new_output)
 
         self.update_interface()
 
+        self._check_if_done_running()
+
+    def _check_if_done_running(self) -> None:
+        # TODO: refactor
+        is_idle = self.current_output is None or \
+            (self.current_output is not None and self.current_output.status == OutputStatus.DONE)
+        if is_idle and not self.queued_outputs.empty():
+            output = self.queued_outputs.get_nowait()
+            self.current_output = output
+
     def tick(self):
+        self._check_if_done_running()
+
         if self.current_output:
             did_stuff = self.runtime.tick(self.current_output)
             if did_stuff:
