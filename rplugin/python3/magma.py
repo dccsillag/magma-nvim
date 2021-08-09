@@ -94,12 +94,12 @@ class Span:
         lines = nvim.funcs.nvim_buf_get_lines(bufno, self.begin.lineno, self.end.lineno+1, True)
 
         if len(lines) == 1:
-            return lines[0][self.begin.colno:self.end.colno+1]
+            return lines[0][self.begin.colno:self.end.colno]
         else:
             return '\n'.join(
                 [lines[0][self.begin.colno:]] +
                 lines[1:-1] +
-                [lines[1][:self.end.colno+1]]
+                [lines[-1][:self.end.colno]]
             )
 
 
@@ -584,13 +584,15 @@ class Magma:
         kind = kind[0]
 
         if kind == 'line':
-            self.nvim.feedkeys(self.nvim.replace_termcodes(r"'[V']:<C-u>MagmaEvaluateVisual<CR>"))
+            keys = r"'[V']"
         elif kind == 'char':
-            self.nvim.feedkeys(self.nvim.replace_termcodes(r"`[v`]:<C-u>MagmaEvaluateVisual<CR>"))
+            keys = r"`[v`]"
         elif kind == 'block':
-            self.nvim.feedkeys(self.nvim.replace_termcodes(r"`[\<C-v>`]:<C-u>MagmaEvaluateVisual<CR>"))
+            keys = r"`[\<C-v>`]"
         else:
             raise ValueError(f"bad type for MagmaEvaluateFromOperator: {kind}")
+        self.nvim.command('noautocmd keepjumps normal! ' + keys)
+        self.nvim.feedkeys(self.nvim.replace_termcodes(":<C-u>MagmaEvaluateVisual<CR>"))
 
     @pynvim.command("MagmaEvaluateOperator", sync=True)
     @nvimui
