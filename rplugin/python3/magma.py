@@ -173,9 +173,8 @@ class JupyterRuntime:
                             f"<Kernel aborted with no error message>."
                         ))
                 elif message_type == 'execute_result':
-                    output.chunks.append(TextOutputChunk(
-                        content['data'] # XXX ???
-                    ))
+                    if (text := content['data'].get('text/plain')) is not None:
+                        output.chunks.append(TextOutputChunk(text))
                 elif message_type == 'error':
                     output.chunks.append(TextOutputChunk(
                         f"[Error] {content['ename']}: {content['evalue']}"
