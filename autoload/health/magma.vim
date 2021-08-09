@@ -1,0 +1,28 @@
+function! s:python_has_module(module) abort
+    python3 import importlib
+    return py3eval("importlib.util.find_spec(vim.eval('a:module')) is not None")
+endfunction
+
+function! s:python_module_check(module, pip_package) abort
+    if s:python_has_module(a:module)
+        call health#report_ok('Python package ' .. a:pip_package .. ' found')
+    else
+        call health#report_error('Python package ' .. a:pip_package .. ' not found',
+                    \ ['pip install ' .. a:pip_package])
+    endif
+endfunction
+
+function! health#magma#check() abort
+    call health#report_start('requirements')
+
+    if has("nvim-0.5")
+        call health#report_ok('NeoVim >=0.5')
+    else
+        call health#report_error('magma-nvim requires NeoVim >=0.5')
+    endif
+
+    call s:python_module_check("pynvim", "pynvim")
+    call s:python_module_check("jupyter_client", "jupyter-client")
+    call s:python_module_check("ueberzug", "ueberzug")
+    call s:python_module_check("PIL", "Pillow")
+endfunction
