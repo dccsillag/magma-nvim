@@ -1,13 +1,18 @@
 from typing import Union, Optional, Tuple, Dict, List
 from abc import ABC, abstractmethod
 from enum import Enum
+from contextlib import contextmanager
 from queue import Empty as EmptyQueueException, Queue
+import base64
+import hashlib
 import re
+import os
 
 import pynvim
 from pynvim.api import Buffer
 from pynvim import Nvim
 import jupyter_client
+import ueberzug.lib.v0 as ueberzug
 
 
 class MagmaException(Exception):
@@ -28,6 +33,45 @@ def nvimui(func):
             self.nvim.err_write("[Magma] " + str(err) + "\n")
 
     return inner
+
+
+class Canvas:
+    ueberzug_canvas: ueberzug.Canvas
+
+    identifiers: Dict[str, ueberzug.Placement]
+
+    def __init__(self):
+        self.ueberzug_canvas = ueberzug.Canvas()
+        self.identifiers = {}
+
+    def __enter__(self, *args):
+        return self.ueberzug_canvas.__enter__(*args)
+
+    def __exit__(self, *args):
+        return self.ueberzug_canvas.__exit__(*args)
+
+    def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int):
+        identifier += f"-{x}-{y}-{width}-{height}"
+
+        if identifier in self.identifiers:
+            img = self.identifiers[identifier]
+        else:
+            img = self.ueberzug_canvas.create_placement(
+                identifier,
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+                scaler=ueberzug.ScalerOption.FIT_CONTAIN.value,
+            )
+            self.identifiers[identifier] = img
+        img.path = path
+
+        img.visibility = ueberzug.Visibility.VISIBLE
+
+    def clear(self):
+        for _, placement in self.identifiers.items():
+            placement.visibility = ueberzug.Visibility.INVISIBLE
 
 
 class Position:
@@ -105,7 +149,7 @@ class Span:
 
 class OutputChunk(ABC):
     @abstractmethod
-    def to_text(self) -> str:
+    def place(self, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
         pass
 
 
@@ -115,36 +159,44 @@ class TextOutputChunk(OutputChunk):
     def __init__(self, text: str):
         self.text = text
 
-    def to_text(self) -> str:
+    def place(self, *_) -> str:
         return self.text
 
 
-class ErrorOutputChunk(OutputChunk):
-    traceback: List[str]
-    name: str
-    message: str
-
+class ErrorOutputChunk(TextOutputChunk):
     def __init__(self, name: str, message: str, traceback: List[str]):
-        self.name      = name
-        self.message   = message
-        self.traceback = traceback
-
-    def to_text(self) -> str:
-        return "\n".join(
+        self.text = "\n".join(
             [
-                f"[Error] {self.name}: {self.message}",
+                f"[Error] {name}: {message}",
                 f"Traceback:",
             ]
-            + self.traceback
+            + traceback
         )
 
 
-class AbortedOutputChunk(OutputChunk):
+class AbortedOutputChunk(TextOutputChunk):
     def __init__(self):
-        pass
+        self.text = "<Kernel aborted with no error message.>"
 
-    def to_text(self) -> str:
-        return "<Kernel aborted with no error message.>"
+
+class ImageOutputChunk(OutputChunk):
+    def __init__(self, img_path: str, img_checksum: str):
+        self.img_path = img_path
+        self.img_checksum = img_checksum
+
+    def place(self, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
+        x, y, w, h = shape
+        nlines = (h-y)-lineno - 3
+        canvas.add_image(
+            self.img_path,
+            self.img_checksum,
+            x=x,
+            y=y + lineno + 1, # TODO: consider scroll in the display window
+            width=w,
+            height=nlines,
+        )
+
+        return "-\n"*nlines
 
 
 class OutputStatus(Enum):
@@ -184,6 +236,8 @@ class JupyterRuntime:
 
     counter: int
 
+    allocated_files: List[str]
+
     def __init__(self, kernel_name: str):
         self.state = RuntimeState.IDLE
         self.kernel_name = kernel_name
@@ -191,10 +245,37 @@ class JupyterRuntime:
         self.kernel_manager, self.kernel_client = \
             jupyter_client.manager.start_new_kernel(kernel_name=kernel_name)
 
+        self.allocated_files = []
+
+    def deinit(self):
+        for path in self.allocated_files:
+            os.remove(path)
+
     def run_code(self, code: str) -> Output:
         self.kernel_client.execute(code)
 
         return Output(None)
+
+    @contextmanager
+    def _alloc_file(self, extension, mode):
+        path = "mytmp." + extension
+        with open(path, mode) as file:
+            yield path, file
+        self.allocated_files.append(path)
+
+    def _to_outputchunk(self, data: dict, _: dict) -> OutputChunk:
+        if (imgdata := data.get('image/png')) is not None:
+            with self._alloc_file('png', 'wb') as (path, file):
+                file.write(base64.b64decode(str(imgdata)))  # type: ignore
+                return ImageOutputChunk(
+                    path,
+                    hashlib.md5(imgdata.encode('ascii')).hexdigest(),
+                )
+        elif (text := data.get('text/plain')) is not None:
+            return TextOutputChunk(text)
+        else:
+            # TODO make this a special OutputChunk
+            raise RuntimeError("no usable mimetype available in output chunk")
 
     def _tick_one(self, output: Output, message_type: str, content: dict) -> bool:
         if output._should_clear:
@@ -225,7 +306,7 @@ class JupyterRuntime:
                 return False
         elif message_type == 'execute_reply':
             if content['status'] == 'ok':
-                output.chunks.append(TextOutputChunk(content['status']))
+                output.chunks.append(TextOutputChunk(content['status'])) # FIXME
                 return True
             elif content['status'] == 'error':
                 output.chunks.append(ErrorOutputChunk(
@@ -242,11 +323,8 @@ class JupyterRuntime:
             else:
                 return False
         elif message_type == 'execute_result':
-            if (text := content['data'].get('text/plain')) is not None:
-                output.chunks.append(TextOutputChunk(text))
-                return True
-            else:
-                return False
+            output.chunks.append(self._to_outputchunk(content['data'], content['metadata']))
+            return True
         elif message_type == 'error':
             output.chunks.append(ErrorOutputChunk(
                 content['ename'],
@@ -260,11 +338,8 @@ class JupyterRuntime:
             return True
         elif message_type == 'display_data':
             # XXX: consider content['transient'], if we end up saving execution outputs.
-            if (text := content['data'].get('text/plain')) is not None:
-                output.chunks.append(TextOutputChunk(text))
-                return True
-            else:
-                return False
+            output.chunks.append(self._to_outputchunk(content['data'], content['metadata']))
+            return True
         elif message_type == 'update_display_data':
             # We don't really want to bother with this type of message.
             return False
@@ -302,6 +377,7 @@ class JupyterRuntime:
 
 class MagmaBuffer:
     nvim: Nvim
+    canvas: Canvas
     highlight_namespace: int
     extmark_namespace: int
     buffer: Buffer
@@ -317,16 +393,18 @@ class MagmaBuffer:
 
     def __init__(self,
                  nvim: Nvim,
+                 canvas: Canvas,
                  highlight_namespace: int,
                  extmark_namespace: int,
                  buffer: Buffer,
                  kernel_name: str):
-        self.nvim                = nvim
+        self.nvim = nvim
+        self.canvas = canvas
         self.highlight_namespace = highlight_namespace
-        self.extmark_namespace   = extmark_namespace
+        self.extmark_namespace = extmark_namespace
         self.buffer = buffer
 
-        self.runtime        = JupyterRuntime(kernel_name)
+        self.runtime = JupyterRuntime(kernel_name)
 
         self.outputs = {}
         self.current_output = None
@@ -334,6 +412,9 @@ class MagmaBuffer:
 
         self.display_buffer = self.nvim.buffers[self.nvim.funcs.nvim_create_buf(False, True)]
         self.display_window = None
+
+    def deinit(self):
+        self.runtime.deinit()
 
     def _buffer_to_window_lineno(self, lineno: int) -> int:
         win_top = self.nvim.funcs.line('w0')
@@ -388,17 +469,33 @@ class MagmaBuffer:
         return f"Out[{execution_count}]: {status}"
 
     def _show_outputs(self, output: Output, anchor: Position):
+        # Get width&height, etc
+        win_col = self.nvim.current.window.col
+        win_row = self._buffer_to_window_lineno(anchor.lineno+1)
+        win_width  = self.nvim.current.window.width
+        win_height = self.nvim.current.window.height
+
         # Clear buffer:
         self.nvim.funcs.deletebufline(self.display_buffer.number, 1, '$')
         # Add output chunks to buffer
-        lines = "\n\n".join(remove_ansi_codes(chunk.to_text())
-                            for chunk in output.chunks).strip().split("\n")
+        lines = ""
+        lineno = 0
+        shape = (win_col, win_row, win_width, win_height)
+        if len(output.chunks) > 0:
+            chunktext = output.chunks[0].place(lineno, shape, self.canvas)
+            lines += chunktext
+            lineno += chunktext.count("\n")
+            for chunk in output.chunks[1:]:
+                lines += "\n\n"
+                lineno += 2
+                chunktext = chunk.place(lineno, shape, self.canvas)
+                lines += chunktext
+                lineno += chunktext.count("\n")
+            lines = lines.rstrip().split("\n")
         self.display_buffer[0] = self._get_header_text(output)
         self.display_buffer.append(lines)
 
-        win_width  = self.nvim.current.window.width
-        win_height = self.nvim.current.window.height
-        win_row = self._buffer_to_window_lineno(anchor.lineno+1)
+        # Open output window
         assert self.display_window is None
         self.display_window = self.nvim.funcs.nvim_open_win(
             self.display_buffer.number,
@@ -427,6 +524,7 @@ class MagmaBuffer:
         )
         if self.display_window is not None: # and self.nvim.funcs.winbufnr(self.display_window) != -1:
             self.nvim.funcs.nvim_win_close(self.display_window, True)
+            self.canvas.clear()
             self.display_window = None
 
     def update_interface(self) -> None:
@@ -488,6 +586,7 @@ class MagmaBuffer:
 @pynvim.plugin
 class Magma:
     nvim: Nvim
+    canvas: Optional[Canvas]
     initialized: bool
 
     highlight_namespace: int
@@ -501,13 +600,17 @@ class Magma:
         self.nvim = nvim
         self.initialized = False
 
+        self.canvas = None
+        self.buffers = {}
+
     def _initialize(self) -> None:
         assert not self.initialized
 
+        self.canvas = Canvas()
+        self.canvas.__enter__()
+
         self.highlight_namespace = self.nvim.funcs.nvim_create_namespace("magma-highlights")
         self.extmark_namespace   = self.nvim.funcs.nvim_create_namespace("magma-extmarks")
-
-        self.buffers = {}
 
         self.timer = self.nvim.eval("timer_start(500, {-> nvim_command('MagmaTick')}, {'repeat': -1})") # type: ignore
         self.nvim.command("""
@@ -517,6 +620,12 @@ class Magma:
         """)
 
         self.initialized = True
+
+    def _deinitialize(self) -> None:
+        for magma in self.buffers.values():
+            magma.deinit()
+        if self.canvas is not None:
+            self.canvas.__exit__()
 
     def _initialize_if_necessary(self) -> None:
         if not self.initialized:
@@ -554,8 +663,10 @@ class Magma:
     def command_init(self, args: List[str]) -> None:
         self._initialize_if_necessary()
 
+        assert self.canvas is not None
         magma = MagmaBuffer(
             self.nvim,
+            self.canvas,
             self.highlight_namespace,
             self.extmark_namespace,
             self.nvim.current.buffer,
@@ -636,3 +747,7 @@ class Magma:
     @nvimui
     def autocmd_winscrolled(self):
         self._update_interface()
+
+    @pynvim.autocmd('ExitPre')
+    def autocmd_exitpre(self):
+        self._deinitialize()
