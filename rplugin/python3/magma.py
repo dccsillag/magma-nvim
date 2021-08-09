@@ -274,12 +274,26 @@ class MagmaBuffer:
             if did_stuff:
                 self.update_interface()
 
+    def _get_header_text(self, output: Output) -> str:
+        if output.execution_count is None:
+            execution_count = '...'
+        else:
+            execution_count = str(output.execution_count)
+
+        if output.done:
+            status = '✓ Done'
+        else:
+            status = '... Running'
+
+        return f"Out[{execution_count}]: {status}"
+
     def _show_outputs(self, output: Output, anchor: Position):
         # Clear buffer:
         self.nvim.funcs.deletebufline(self.display_buffer.number, 1, '$')
         # Add output chunks to buffer
         lines = "\n\n".join(chunk.to_text() for chunk in output.chunks).strip().split("\n")
-        self.display_buffer.append(lines, index=0)
+        self.display_buffer[0] = self._get_header_text(output)
+        self.display_buffer.append(lines)
 
         win_width  = self.nvim.current.window.width
         win_height = self.nvim.current.window.height
@@ -293,7 +307,7 @@ class MagmaBuffer:
                 'col': 0,
                 'row': win_row,
                 'width': win_width,
-                'height': min(win_height - win_row, len(lines)),
+                'height': min(win_height - win_row, len(lines)+1),
                 'anchor': 'NW',
                 'style': 'minimal',
             }
