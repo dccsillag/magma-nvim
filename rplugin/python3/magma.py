@@ -28,6 +28,13 @@ class MagmaException(Exception):
     pass
 
 
+class MagmaOptions:
+    automatically_open_output: bool
+
+    def __init__(self, nvim: Nvim):
+        self.automatically_open_output = nvim.vars.get("magma_automatically_open_output", True)
+
+
 # Adapted from [https://stackoverflow.com/a/14693789/4803382]:
 ANSI_CODE_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 def remove_ansi_codes(text: str) -> str:
@@ -439,6 +446,9 @@ class MagmaBuffer:
 
     display_buffer: Buffer
     display_window: Optional[int]
+    should_open_display_window: bool
+
+    options: MagmaOptions
 
     def __init__(self,
                  nvim: Nvim,
@@ -446,6 +456,7 @@ class MagmaBuffer:
                  highlight_namespace: int,
                  extmark_namespace: int,
                  buffer: Buffer,
+                 options: MagmaOptions,
                  kernel_name: str):
         self.nvim = nvim
         self.canvas = canvas
@@ -462,6 +473,8 @@ class MagmaBuffer:
         self.display_buffer = self.nvim.buffers[self.nvim.funcs.nvim_create_buf(False, True)]
         self.display_window = None
 
+        self.options = options
+
     def deinit(self):
         self.runtime.deinit()
 
@@ -477,6 +490,7 @@ class MagmaBuffer:
 
         self.queued_outputs.put(new_output)
 
+        self.should_open_display_window = True
         self.update_interface()
 
         self._check_if_done_running()
@@ -587,8 +601,13 @@ class MagmaBuffer:
                 selected = span
                 break
 
+        if self.options.automatically_open_output:
+            self.should_open_display_window = True
+
         if selected is not None:
             self._show_selected(selected)
+        else:
+            self.should_open_display_window = False
         self.canvas.present()
 
     def _show_selected(self, span: Span) -> None:
@@ -630,7 +649,7 @@ class MagmaBuffer:
                 span.end.colno,
             )
 
-        if self.current_output is not None:
+        if self.current_output is not None and self.should_open_display_window:
             self._show_outputs(self.outputs[span], span.end)
 
 
@@ -721,7 +740,8 @@ class Magma:
             self.highlight_namespace,
             self.extmark_namespace,
             self.nvim.current.buffer,
-            args[0]
+            MagmaOptions(self.nvim),
+            args[0],
         )
 
         self.buffers[self.nvim.current.buffer.number] = magma
@@ -783,6 +803,17 @@ class Magma:
         span = ((lineno, 0), (lineno, -1))
 
         self._do_evaluate(span)
+
+    @pynvim.command("MagmaShowOutput", nargs=0, sync=True)
+    @nvimui
+    def command_show_output(self) -> None:
+        self._initialize_if_necessary()
+
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        magma.should_open_display_window = True
+        self._update_interface()
 
     @pynvim.autocmd('CursorMoved', sync=True)
     @nvimui
