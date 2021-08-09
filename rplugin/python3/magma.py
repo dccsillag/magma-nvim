@@ -140,51 +140,52 @@ class JupyterRuntime:
 
         return Output(None)
 
-    def tick(self, output: Output) -> None:
-        try:
-            assert isinstance(self.kernel_client, jupyter_client.blocking.client.BlockingKernelClient)
-            message = self.kernel_client.get_iopub_msg(timeout=0)
-
-            if 'content' not in message or 'msg_type' not in message:
-                return
-
-            message_type = message['msg_type']
-            content = message['content']
-
-            if self.state == RuntimeState.IDLE:
-                if message_type == 'execute_input':
-                    self.state = RuntimeState.RUNNING
-                    output.execution_count = content['execution_count']
-            elif self.state == RuntimeState.RUNNING:
-                if message_type == 'status':
-                    if content['execution_state'] == 'idle':
-                        self.state = RuntimeState.IDLE
-                elif message_type == 'execute_reply':
-                    if content['status'] == 'ok':
-                        output.chunks.append(TextOutputChunk(content['status']))
-                    elif content['status'] == 'error':
-                        # TODO improve error formatting (in particular, use content['traceback'])
-                        output.chunks.append(TextOutputChunk(
-                            f"[Error] {content['ename']}: {content['evalue']}"
-                        ))
-                    elif content['status'] == 'abort':
-                        # TODO improve error formatting
-                        output.chunks.append(TextOutputChunk(
-                            f"<Kernel aborted with no error message>."
-                        ))
-                elif message_type == 'execute_result':
-                    if (text := content['data'].get('text/plain')) is not None:
-                        output.chunks.append(TextOutputChunk(text))
-                elif message_type == 'error':
+    def _tick_one(self, output: Output, message_type: str, content: dict) -> None:
+        if self.state == RuntimeState.IDLE:
+            if message_type == 'execute_input':
+                self.state = RuntimeState.RUNNING
+                output.execution_count = content['execution_count']
+        elif self.state == RuntimeState.RUNNING:
+            if message_type == 'status':
+                if content['execution_state'] == 'idle':
+                    self.state = RuntimeState.IDLE
+            elif message_type == 'execute_reply':
+                if content['status'] == 'ok':
+                    output.chunks.append(TextOutputChunk(content['status']))
+                elif content['status'] == 'error':
+                    # TODO improve error formatting (in particular, use content['traceback'])
                     output.chunks.append(TextOutputChunk(
                         f"[Error] {content['ename']}: {content['evalue']}"
                     ))
-                elif message_type == 'stream':
-                    output.chunks.append(TextOutputChunk(content['text']))
-            else:
-                raise RuntimeError(f"bad RuntimeState: {self.state}")
-        except EmptyQueueException:
-            return
+                elif content['status'] == 'abort':
+                    # TODO improve error formatting
+                    output.chunks.append(TextOutputChunk(
+                        f"<Kernel aborted with no error message>."
+                    ))
+            elif message_type == 'execute_result':
+                if (text := content['data'].get('text/plain')) is not None:
+                    output.chunks.append(TextOutputChunk(text))
+            elif message_type == 'error':
+                output.chunks.append(TextOutputChunk(
+                    f"[Error] {content['ename']}: {content['evalue']}"
+                ))
+            elif message_type == 'stream':
+                output.chunks.append(TextOutputChunk(content['text']))
+        else:
+            raise RuntimeError(f"bad RuntimeState: {self.state}")
+
+    def tick(self, output: Output) -> None:
+        while True:
+            try:
+                assert isinstance(self.kernel_client, jupyter_client.blocking.client.BlockingKernelClient)
+                message = self.kernel_client.get_iopub_msg(timeout=0)
+
+                if 'content' not in message or 'msg_type' not in message:
+                    continue
+
+                self._tick_one(output, message['msg_type'], message['content'])
+            except EmptyQueueException:
+                break
 
 
 class MagmaBuffer:
