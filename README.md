@@ -178,3 +178,7 @@ Here is a list of the currently handled mimetypes:
 - `image/png`: A PNG image. Shown with [Ueberzug](https://github.com/seebye/ueberzug).
 
 This already provides quite a bit of basic functionality. As development continues, more mimetypes will be added.
+
+## License
+
+This code is licensed under the GPLv3 (due to Ueberzug using it).
