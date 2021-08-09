@@ -516,3 +516,8 @@ class Magma:
     @nvimui
     def autocmd_cursormovedi(self):
         self._on_cursor_moved()
+
+    @pynvim.autocmd('WinScrolled', sync=True)
+    @nvimui
+    def autocmd_winscrolled(self):
+        self._on_cursor_moved()
