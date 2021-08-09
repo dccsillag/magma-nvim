@@ -112,14 +112,20 @@ class TextOutputChunk(OutputChunk):
         return self.text
 
 
+class OutputStatus(Enum):
+    HOLD         = 0
+    RUNNING      = 1
+    DONE = 2
+
+
 class Output:
     execution_count: Optional[int]
     chunks: List[OutputChunk]
-    done: bool
+    status: OutputStatus
 
     def __init__(self, execution_count: Optional[int]):
         self.execution_count = execution_count
-        self.done = False
+        self.status = OutputStatus.HOLD
         self.chunks = []
 
 
@@ -154,6 +160,7 @@ class JupyterRuntime:
             if message_type == 'execute_input':
                 self.state = RuntimeState.RUNNING
                 output.execution_count = content['execution_count']
+                output.status = OutputStatus.RUNNING
                 return True
             else:
                 return False
@@ -161,7 +168,7 @@ class JupyterRuntime:
             if message_type == 'status':
                 if content['execution_state'] == 'idle':
                     self.state = RuntimeState.IDLE
-                    output.done = True
+                    output.status = OutputStatus.DONE
                     return True
                 else:
                     return False
@@ -280,10 +287,14 @@ class MagmaBuffer:
         else:
             execution_count = str(output.execution_count)
 
-        if output.done:
+        if output.status == OutputStatus.HOLD:
+            status = '* On Hold'
+        elif output.status == OutputStatus.DONE:
             status = '✓ Done'
-        else:
+        elif output.status == OutputStatus.RUNNING:
             status = '... Running'
+        else:
+            raise ValueError('bad output.status: %s' % output.status)
 
         return f"Out[{execution_count}]: {status}"
 
