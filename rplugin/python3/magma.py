@@ -2,6 +2,7 @@ from typing import Union, Optional, Tuple, Dict, List
 from abc import ABC, abstractmethod
 from enum import Enum
 from queue import Empty as EmptyQueueException, Queue
+import re
 
 import pynvim
 from pynvim.api import Buffer
@@ -11,6 +12,12 @@ import jupyter_client
 
 class MagmaException(Exception):
     pass
+
+
+# Adapted from [https://stackoverflow.com/a/14693789/4803382]:
+ANSI_CODE_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+def remove_ansi_codes(text: str) -> str:
+    return ANSI_CODE_REGEX.sub('', text)
 
 
 def nvimui(func):
@@ -112,6 +119,34 @@ class TextOutputChunk(OutputChunk):
         return self.text
 
 
+class ErrorOutputChunk(OutputChunk):
+    traceback: List[str]
+    name: str
+    message: str
+
+    def __init__(self, name: str, message: str, traceback: List[str]):
+        self.name      = name
+        self.message   = message
+        self.traceback = traceback
+
+    def to_text(self) -> str:
+        return "\n".join(
+            [
+                f"[Error] {self.name}: {self.message}",
+                f"Traceback:",
+            ]
+            + self.traceback
+        )
+
+
+class AbortedOutputChunk(OutputChunk):
+    def __init__(self):
+        pass
+
+    def to_text(self) -> str:
+        return "<Kernel aborted with no error message.>"
+
+
 class OutputStatus(Enum):
     HOLD         = 0
     RUNNING      = 1
@@ -185,17 +220,15 @@ class JupyterRuntime:
                 output.chunks.append(TextOutputChunk(content['status']))
                 return True
             elif content['status'] == 'error':
-                # TODO improve error formatting (in particular, use content['traceback'])
-                output.chunks.append(TextOutputChunk(
-                    f"[Error] {content['ename']}: {content['evalue']}"
+                output.chunks.append(ErrorOutputChunk(
+                    content['ename'],
+                    content['evalue'],
+                    content['traceback']
                 ))
                 output.success = False
                 return True
             elif content['status'] == 'abort':
-                # TODO improve error formatting
-                output.chunks.append(TextOutputChunk(
-                    f"<Kernel aborted with no error message>."
-                ))
+                output.chunks.append(AbortedOutputChunk())
                 output.success = False
                 return True
             else:
@@ -207,8 +240,10 @@ class JupyterRuntime:
             else:
                 return False
         elif message_type == 'error':
-            output.chunks.append(TextOutputChunk(
-                f"[Error] {content['ename']}: {content['evalue']}"
+            output.chunks.append(ErrorOutputChunk(
+                content['ename'],
+                content['evalue'],
+                content['traceback']
             ))
             output.success = False
             return True
@@ -346,7 +381,8 @@ class MagmaBuffer:
         # Clear buffer:
         self.nvim.funcs.deletebufline(self.display_buffer.number, 1, '$')
         # Add output chunks to buffer
-        lines = "\n\n".join(chunk.to_text() for chunk in output.chunks).strip().split("\n")
+        lines = "\n\n".join(remove_ansi_codes(chunk.to_text())
+                            for chunk in output.chunks).strip().split("\n")
         self.display_buffer[0] = self._get_header_text(output)
         self.display_buffer.append(lines)
 
