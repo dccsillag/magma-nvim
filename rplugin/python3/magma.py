@@ -159,11 +159,15 @@ class Output:
     status: OutputStatus
     success: bool
 
+    _should_clear: bool
+
     def __init__(self, execution_count: Optional[int]):
         self.execution_count = execution_count
         self.status = OutputStatus.HOLD
         self.chunks = []
         self.success = True
+
+        self._should_clear = False
 
 
 class RuntimeState(Enum):
@@ -193,6 +197,10 @@ class JupyterRuntime:
         return Output(None)
 
     def _tick_one(self, output: Output, message_type: str, content: dict) -> bool:
+        if output._should_clear:
+            output.chunks.clear()
+            output._should_clear = False
+
         if message_type == 'execute_input':
             output.execution_count = content['execution_count']
             assert output.status != OutputStatus.DONE
@@ -261,8 +269,10 @@ class JupyterRuntime:
             # We don't really want to bother with this type of message.
             return False
         elif message_type == 'clear_output':
-            # TODO: content['wait']
-            output.chunks.clear()
+            if content['wait']:
+                output._should_clear = True
+            else:
+                output.chunks.clear()
             return True
         # TODO: message_type == 'debug'?
         else:
