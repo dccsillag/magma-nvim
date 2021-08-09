@@ -591,15 +591,29 @@ class MagmaBuffer:
             self.canvas.clear()
             self.display_window = None
 
-    def update_interface(self) -> None:
-        self._clear_interface()
-
+    def _get_selected_span(self) -> Optional[Span]:
         current_position = self._get_cursor_position()
         selected = None
         for span in reversed(self.outputs.keys()):
             if current_position in span:
                 selected = span
                 break
+
+        return selected
+
+    def delete_cell(self) -> None:
+        selected = self._get_selected_span()
+        if selected is None:
+            return
+
+        del self.outputs[selected]
+
+        self.update_interface()
+
+    def update_interface(self) -> None:
+        self._clear_interface()
+
+        selected = self._get_selected_span()
 
         if self.options.automatically_open_output:
             self.should_open_display_window = True
@@ -803,6 +817,16 @@ class Magma:
         span = ((lineno, 0), (lineno, -1))
 
         self._do_evaluate(span)
+
+    @pynvim.command("MagmaDelete", nargs=0, sync=True)
+    @nvimui
+    def command_delete(self) -> None:
+        self._initialize_if_necessary()
+
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        magma.delete_cell()
 
     @pynvim.command("MagmaShowOutput", nargs=0, sync=True)
     @nvimui
