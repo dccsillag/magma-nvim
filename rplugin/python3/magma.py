@@ -98,11 +98,6 @@ class TextOutputChunk(OutputChunk):
         return self.text
 
 
-class InterruptOutputChunk(OutputChunk):
-    def to_text(self) -> str:
-        return "<Interrupted>."
-
-
 class Output:
     execution_count: Optional[int]
     chunks: List[OutputChunk]
