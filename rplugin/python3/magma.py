@@ -2,17 +2,26 @@ from typing import Union, Optional, Tuple, Dict, List
 from abc import ABC, abstractmethod
 from enum import Enum
 from contextlib import contextmanager
+from math import floor
 from queue import Empty as EmptyQueueException, Queue
 import base64
 import hashlib
 import re
+import io
 import os
+import termios
+import fcntl
+import struct
 
 import pynvim
 from pynvim.api import Buffer
 from pynvim import Nvim
 import jupyter_client
 import ueberzug.lib.v0 as ueberzug
+# FIXME: this is not really in Ueberzug's public API.
+# We should move this function into this code.
+from ueberzug.process import get_pty_slave
+from PIL import Image
 
 
 class MagmaException(Exception):
@@ -180,13 +189,32 @@ class AbortedOutputChunk(TextOutputChunk):
 
 
 class ImageOutputChunk(OutputChunk):
-    def __init__(self, img_path: str, img_checksum: str):
+    def __init__(self, img_path: str, img_checksum: str, img_shape: Tuple[int, int]):
         self.img_path = img_path
         self.img_checksum = img_checksum
+        self.img_width, self.img_height = img_shape
+
+    def _get_char_pixelsize(self) -> Tuple[int, int]:
+        pty = get_pty_slave(os.getppid())
+        assert pty is not None
+        with open(pty) as fd_pty:
+            farg = struct.pack("HHHH", 0, 0, 0, 0)
+            fretint = fcntl.ioctl(fd_pty, termios.TIOCGWINSZ, farg)
+            rows, cols, xpixels, ypixels = struct.unpack("HHHH", fretint)
+
+            return xpixels/cols, ypixels/rows
 
     def place(self, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
         x, y, w, h = shape
-        nlines = (h-y)-lineno - 3
+
+        xpixels, ypixels = self._get_char_pixelsize()
+
+        max_nlines = (h-y)-lineno - 3
+        if ((self.img_width/xpixels)/(self.img_height/ypixels))*max_nlines <= w:
+            nlines = max_nlines
+        else:
+            nlines = floor(((self.img_height/ypixels)/(self.img_width/xpixels))*w)
+
         canvas.add_image(
             self.img_path,
             self.img_checksum,
@@ -195,7 +223,6 @@ class ImageOutputChunk(OutputChunk):
             width=w,
             height=nlines,
         )
-
         return "-\n"*nlines
 
 
@@ -266,10 +293,13 @@ class JupyterRuntime:
     def _to_outputchunk(self, data: dict, _: dict) -> OutputChunk:
         if (imgdata := data.get('image/png')) is not None:
             with self._alloc_file('png', 'wb') as (path, file):
-                file.write(base64.b64decode(str(imgdata)))  # type: ignore
+                img = base64.b64decode(str(imgdata))
+                file.write(img)  # type: ignore
+                pil_image = Image.open(io.BytesIO(img))
                 return ImageOutputChunk(
                     path,
                     hashlib.md5(imgdata.encode('ascii')).hexdigest(),
+                    pil_image.size,
                 )
         elif (text := data.get('text/plain')) is not None:
             return TextOutputChunk(text)
