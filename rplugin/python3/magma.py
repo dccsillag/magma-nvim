@@ -538,6 +538,7 @@ class MagmaBuffer:
                 'height': min(win_height - win_row, len(lines)+1),
                 'anchor': 'NW',
                 'style': 'minimal',
+                'focusable': False,
             }
         )
 
