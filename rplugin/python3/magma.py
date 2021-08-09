@@ -122,11 +122,13 @@ class Output:
     execution_count: Optional[int]
     chunks: List[OutputChunk]
     status: OutputStatus
+    success: bool
 
     def __init__(self, execution_count: Optional[int]):
         self.execution_count = execution_count
         self.status = OutputStatus.HOLD
         self.chunks = []
+        self.success = True
 
 
 class RuntimeState(Enum):
@@ -181,12 +183,14 @@ class JupyterRuntime:
                     output.chunks.append(TextOutputChunk(
                         f"[Error] {content['ename']}: {content['evalue']}"
                     ))
+                    output.success = False
                     return True
                 elif content['status'] == 'abort':
                     # TODO improve error formatting
                     output.chunks.append(TextOutputChunk(
                         f"<Kernel aborted with no error message>."
                     ))
+                    output.success = False
                     return True
                 else:
                     return False
@@ -200,6 +204,7 @@ class JupyterRuntime:
                 output.chunks.append(TextOutputChunk(
                     f"[Error] {content['ename']}: {content['evalue']}"
                 ))
+                output.success = False
                 return True
             elif message_type == 'stream':
                 output.chunks.append(TextOutputChunk(content['text']))
@@ -290,7 +295,10 @@ class MagmaBuffer:
         if output.status == OutputStatus.HOLD:
             status = '* On Hold'
         elif output.status == OutputStatus.DONE:
-            status = '✓ Done'
+            if output.success:
+                status = '✓ Done'
+            else:
+                status = '✗ Failed'
         elif output.status == OutputStatus.RUNNING:
             status = '... Running'
         else:
