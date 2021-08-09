@@ -243,10 +243,11 @@ class MagmaBuffer:
         self.current_output = self.runtime.run_code(code)
         if span is not None:
             assert self.current_output is not None
+            if span in self.outputs:
+                del self.outputs[span]
             self.outputs[span] = self.current_output
 
-        if span is not None:
-            self._show_selected(span)
+        self._update_interface()
 
     def tick(self):
         if self.current_output:
@@ -440,7 +441,7 @@ class Magma:
 
         magma.run_code(code, span)
 
-    @pynvim.command("MagmaEvaluateVisual")
+    @pynvim.command("MagmaEvaluateVisual", sync=True)
     def command_evaluate_visual(self) -> None:
         _, lineno_begin, colno_begin, _ = self.nvim.funcs.getpos("'<")
         _, lineno_end,   colno_end,   _ = self.nvim.funcs.getpos("'>")
@@ -462,7 +463,7 @@ class Magma:
         else:
             raise ValueError(f"bad type for MagmaEvaluateFromOperator: {kind}")
 
-    @pynvim.command("MagmaEvaluateOperator")
+    @pynvim.command("MagmaEvaluateOperator", sync=True)
     def command_evaluate_operator(self) -> None:
         self.nvim.options['operatorfunc'] = 'g:MagmaOperatorfunc'
         self.nvim.feedkeys('g@')
