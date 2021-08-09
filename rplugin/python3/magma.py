@@ -140,9 +140,6 @@ class JupyterRuntime:
 
         return Output(None)
 
-    def stop_execution(self) -> None:
-        pass  # TODO
-
     def tick(self, output: Output) -> None:
         try:
             assert isinstance(self.kernel_client, jupyter_client.blocking.client.BlockingKernelClient)
@@ -233,13 +230,6 @@ class MagmaBuffer:
         if span is not None:
             self._show_selected(span)
 
-    def stop_code(self):
-        self.current_output.chunks.append(InterruptOutputChunk())
-
-        self.current_output = None
-
-        self.runtime.stop_execution()
-
     def tick(self):
         if self.current_output:
             self.runtime.tick(self.current_output)
@@ -248,8 +238,8 @@ class MagmaBuffer:
         # Clear buffer:
         self.nvim.funcs.deletebufline(self.display_buffer.number, 1, '$')
         # Add output chunks to buffer
-        lines = "\n\n".join(chunk.to_text() for chunk in output.chunks).split("\n")
-        self.display_buffer.append(lines)
+        lines = "\n\n".join(chunk.to_text() for chunk in output.chunks).strip().split("\n")
+        self.display_buffer.append(lines, index=0)
 
         cur_lineno, cur_colno = self.nvim.funcs.nvim_win_get_cursor(0)
         assert self.display_window is None
