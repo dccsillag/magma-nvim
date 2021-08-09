@@ -1,4 +1,4 @@
-from typing import Union, Optional, Tuple, Dict, List
+from typing import Union, Optional, Tuple, Dict, List, Set
 from abc import ABC, abstractmethod
 from enum import Enum
 from contextlib import contextmanager
@@ -49,15 +49,38 @@ class Canvas:
 
     identifiers: Dict[str, ueberzug.Placement]
 
+    _visible: Set[str]
+    _to_make_visible: Set[str]
+    _to_make_invisible: Set[str]
+
     def __init__(self):
         self.ueberzug_canvas = ueberzug.Canvas()
         self.identifiers = {}
+
+        self._visible           = set()
+        self._to_make_visible   = set()
+        self._to_make_invisible = set()
 
     def __enter__(self, *args):
         return self.ueberzug_canvas.__enter__(*args)
 
     def __exit__(self, *args):
         return self.ueberzug_canvas.__exit__(*args)
+
+    def present(self) -> None:
+        self._to_make_invisible.difference_update(self._to_make_visible)
+        for identifier in self._to_make_invisible:
+            self.identifiers[identifier].visibility = ueberzug.Visibility.INVISIBLE
+        for identifier in self._to_make_visible:
+            self.identifiers[identifier].visibility = ueberzug.Visibility.VISIBLE
+            self._visible.add(identifier)
+        self._to_make_invisible.clear()
+        self._to_make_visible.clear()
+
+    def clear(self):
+        for identifier in self._visible:
+            self._to_make_invisible.add(identifier)
+        self._visible.clear()
 
     def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int):
         identifier += f"-{x}-{y}-{width}-{height}"
@@ -76,11 +99,7 @@ class Canvas:
             self.identifiers[identifier] = img
         img.path = path
 
-        img.visibility = ueberzug.Visibility.VISIBLE
-
-    def clear(self):
-        for _, placement in self.identifiers.items():
-            placement.visibility = ueberzug.Visibility.INVISIBLE
+        self._to_make_visible.add(identifier)
 
 
 class Position:
@@ -570,6 +589,7 @@ class MagmaBuffer:
 
         if selected is not None:
             self._show_selected(selected)
+        self.canvas.present()
 
     def _show_selected(self, span: Span) -> None:
         # TODO: get a better highlight group
