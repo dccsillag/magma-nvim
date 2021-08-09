@@ -265,13 +265,13 @@ class MagmaBuffer:
                 del self.outputs[span]
             self.outputs[span] = self.current_output
 
-        self._update_interface()
+        self.update_interface()
 
     def tick(self):
         if self.current_output:
             did_stuff = self.runtime.tick(self.current_output)
             if did_stuff:
-                self._update_interface()
+                self.update_interface()
 
     def _show_outputs(self, output: Output, anchor: Position):
         # Clear buffer:
@@ -313,7 +313,7 @@ class MagmaBuffer:
             self.nvim.funcs.nvim_win_close(self.display_window, True)
             self.display_window = None
 
-    def _update_interface(self) -> None:
+    def update_interface(self) -> None:
         self._clear_interface()
 
         current_position = self._get_cursor_position()
@@ -325,9 +325,6 @@ class MagmaBuffer:
 
         if selected is not None:
             self._show_selected(selected)
-
-    def on_cursor_move(self) -> None:
-        self._update_interface()
 
     def _show_selected(self, span: Span) -> None:
         # TODO: get a better highlight group
@@ -426,7 +423,7 @@ class Magma:
 
         magma.tick()
 
-    def _on_cursor_moved(self) -> None:
+    def _update_interface(self) -> None:
         if not self.initialized:
             return
 
@@ -434,7 +431,7 @@ class Magma:
         if magma is None:
             return
 
-        magma.on_cursor_move()
+        magma.update_interface()
 
     @pynvim.command("MagmaInit", nargs=1, sync=True)
     @nvimui
@@ -510,14 +507,14 @@ class Magma:
     @pynvim.autocmd('CursorMoved', sync=True)
     @nvimui
     def autocmd_cursormoved(self):
-        self._on_cursor_moved()
+        self._update_interface()
 
     @pynvim.autocmd('CursorMovedI', sync=True)
     @nvimui
     def autocmd_cursormovedi(self):
-        self._on_cursor_moved()
+        self._update_interface()
 
     @pynvim.autocmd('WinScrolled', sync=True)
     @nvimui
     def autocmd_winscrolled(self):
-        self._on_cursor_moved()
+        self._update_interface()
