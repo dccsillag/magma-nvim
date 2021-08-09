@@ -251,7 +251,7 @@ class JupyterRuntime:
             output.chunks.append(TextOutputChunk(content['text']))
             return True
         elif message_type == 'display_data':
-            # TODO: consider content['transient']
+            # XXX: consider content['transient'], if we end up saving execution outputs.
             if (text := content['data'].get('text/plain')) is not None:
                 output.chunks.append(TextOutputChunk(text))
                 return True
