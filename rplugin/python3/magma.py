@@ -9,6 +9,7 @@ import hashlib
 import re
 import io
 import os
+import tempfile
 import termios
 import fcntl
 import struct
@@ -318,8 +319,8 @@ class JupyterRuntime:
 
     @contextmanager
     def _alloc_file(self, extension, mode):
-        path = "mytmp." + extension
-        with open(path, mode) as file:
+        with tempfile.NamedTemporaryFile(suffix="."+extension, mode=mode, delete=False) as file:
+            path = file.name
             yield path, file
         self.allocated_files.append(path)
 
