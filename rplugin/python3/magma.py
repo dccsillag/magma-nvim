@@ -23,6 +23,7 @@ import ueberzug.lib.v0 as ueberzug
 #        We should move this function into this codebase.
 from ueberzug.process import get_pty_slave
 from PIL import Image
+import cairosvg
 
 
 class MagmaException(Exception):
@@ -346,17 +347,23 @@ class JupyterRuntime:
             yield path, file
         self.allocated_files.append(path)
 
+    def _to_image_chunk(self, path: str) -> OutputChunk:
+        pil_image = Image.open(path)
+        return ImageOutputChunk(
+            path,
+            hashlib.md5(pil_image.tobytes()).hexdigest(),
+            pil_image.size,
+        )
+
     def _to_outputchunk(self, data: dict, _: dict) -> OutputChunk:
         if (imgdata := data.get('image/png')) is not None:
             with self._alloc_file('png', 'wb') as (path, file):
-                img = base64.b64decode(str(imgdata))
-                file.write(img)  # type: ignore
-                pil_image = Image.open(io.BytesIO(img))
-                return ImageOutputChunk(
-                    path,
-                    hashlib.md5(imgdata.encode('ascii')).hexdigest(),
-                    pil_image.size,
-                )
+                file.write(base64.b64decode(str(imgdata)))  # type: ignore
+            return self._to_image_chunk(path)
+        elif (svg := data.get('image/svg+xml')) is not None:
+            with self._alloc_file('png', 'wb') as (path, file):
+                cairosvg.svg2png(svg, write_to=file)
+            return self._to_image_chunk(path)
         elif (text := data.get('text/plain')) is not None:
             return TextLnOutputChunk(text)
         else:
