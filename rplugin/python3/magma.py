@@ -836,16 +836,21 @@ class Magma:
     def command_evaluate_from_marks(self, kind) -> None:
         kind = kind[0]
 
+        _, lineno_begin, colno_begin, _ = self.nvim.funcs.getpos("'[")
+        _, lineno_end,   colno_end,   _ = self.nvim.funcs.getpos("']")
+
         if kind == 'line':
-            keys = r"'[V']"
+            colno_begin = 1
+            colno_end = -1
         elif kind == 'char':
-            keys = r"`[v`]"
-        elif kind == 'block':
-            keys = r"`[\<C-v>`]"
+            pass
         else:
-            raise ValueError(f"bad type for MagmaEvaluateFromOperator: {kind}")
-        self.nvim.command('noautocmd keepjumps normal! ' + keys)
-        self.nvim.feedkeys(self.nvim.replace_termcodes(":<C-u>MagmaEvaluateVisual<CR>"))
+            raise MagmaException(f"this kind of selection is not supported: '{kind}'")
+
+        span = ((lineno_begin-1, min(colno_begin, len(self.nvim.funcs.getline(lineno_begin)))-1),
+                (lineno_end-1,   min(colno_end,   len(self.nvim.funcs.getline(  lineno_end)))))
+
+        self._do_evaluate(span)
 
     @pynvim.command("MagmaEvaluateOperator", sync=True)
     @nvimui
