@@ -73,7 +73,8 @@ class Canvas:
         return self.ueberzug_canvas.__enter__(*args)
 
     def __exit__(self, *args):
-        return self.ueberzug_canvas.__exit__(*args)
+        if len(self.identifiers) > 0:
+            return self.ueberzug_canvas.__exit__(*args)
 
     def present(self) -> None:
         self._to_make_invisible.difference_update(self._to_make_visible)
