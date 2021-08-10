@@ -204,33 +204,33 @@ class TextOutputChunk(OutputChunk):
 
 class TextLnOutputChunk(TextOutputChunk):
     def __init__(self, text: str):
-        self.text = text + "\n"
+        super().__init__(text + "\n")
 
 
 class BadOutputChunk(TextLnOutputChunk):
     def __init__(self, mimetypes: List[str]):
-        self.text = "<No usable MIMEtype! Received mimetypes %r>" % mimetypes
+        super().__init__("<No usable MIMEtype! Received mimetypes %r>" % mimetypes)
 
 
 class MimetypesOutputChunk(TextLnOutputChunk):
     def __init__(self, mimetypes: List[str]):
-        self.text = "[DEBUG] Received mimetypes: %r" % mimetypes
+        super().__init__("[DEBUG] Received mimetypes: %r" % mimetypes)
 
 
 class ErrorOutputChunk(TextLnOutputChunk):
     def __init__(self, name: str, message: str, traceback: List[str]):
-        self.text = "\n".join(
+        super().__init__("\n".join(
             [
                 f"[Error] {name}: {message}",
                 f"Traceback:",
             ]
-            + traceback
-        )
+                + traceback
+        ))
 
 
 class AbortedOutputChunk(TextLnOutputChunk):
     def __init__(self):
-        self.text = "<Kernel aborted with no error message.>"
+        super().__init__("<Kernel aborted with no error message.>")
 
 
 class ImageOutputChunk(OutputChunk):
