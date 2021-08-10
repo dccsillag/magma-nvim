@@ -742,10 +742,28 @@ class Magma:
 
         magma.update_interface()
 
-    @pynvim.command("MagmaInit", nargs=1, sync=True)
+    def _ask_for_choice(self, preface: str, options: List[str]) -> str:
+        index = self.nvim.funcs.inputlist(
+            [preface]
+            + [f"{i+1}. {option}" for i, option in enumerate(options)]
+        )
+        return options[index-1]
+
+    def _ask_for_kernel(self) -> str:
+        return self._ask_for_choice(
+            "Select the kernel to launch:",
+            list(jupyter_client.kernelspec.find_kernel_specs().keys()),
+        )
+
+    @pynvim.command("MagmaInit", nargs='?', sync=True)
     @nvimui
     def command_init(self, args: List[str]) -> None:
         self._initialize_if_necessary()
+
+        if args:
+            kernel_name = args[0]
+        else:
+            kernel_name = self._ask_for_kernel()
 
         assert self.canvas is not None
         magma = MagmaBuffer(
@@ -755,7 +773,7 @@ class Magma:
             self.extmark_namespace,
             self.nvim.current.buffer,
             MagmaOptions(self.nvim),
-            args[0],
+            kernel_name,
         )
 
         self.buffers[self.nvim.current.buffer.number] = magma
