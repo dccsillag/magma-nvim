@@ -594,7 +594,7 @@ class MagmaBuffer:
         _, lineno, colno, _, _ = self.nvim.funcs.getcurpos()
         return Position(self.nvim.current.buffer.number, lineno-1, colno-1)
 
-    def _clear_interface(self) -> None:
+    def clear_interface(self) -> None:
         self.nvim.funcs.nvim_buf_clear_namespace(
             self.buffer.number,
             self.highlight_namespace,
@@ -626,7 +626,13 @@ class MagmaBuffer:
         self.update_interface()
 
     def update_interface(self) -> None:
-        self._clear_interface()
+        self.nvim.out_write(f"bufno={self.nvim.current.window.buffer.number}\n")
+        if self.buffer.number != self.nvim.current.buffer.number:
+            return
+        if self.buffer.number != self.nvim.current.window.buffer.number:
+            return
+
+        self.clear_interface()
 
         selected_cell = self._get_selected_span()
 
@@ -752,6 +758,14 @@ class Magma:
             return
 
         magma.tick()
+
+    def _clear_interface(self) -> None:
+        if not self.initialized:
+            return
+
+        for magma in self.buffers.values():
+            magma.clear_interface()
+        self.canvas.present()
 
     def _update_interface(self) -> None:
         if not self.initialized:
@@ -896,6 +910,16 @@ class Magma:
     @pynvim.autocmd('WinScrolled', sync=True)
     @nvimui
     def autocmd_winscrolled(self):
+        self._update_interface()
+
+    @pynvim.autocmd('BufLeave', sync=True)
+    @nvimui
+    def autocmd_bufleave(self):
+        self._clear_interface()
+
+    @pynvim.autocmd('BufEnter', sync=True)
+    @nvimui
+    def autocmd_bufenter(self):
         self._update_interface()
 
     @pynvim.autocmd('ExitPre')
