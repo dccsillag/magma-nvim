@@ -628,7 +628,6 @@ class MagmaBuffer:
         self.update_interface()
 
     def update_interface(self) -> None:
-        self.nvim.out_write(f"bufno={self.nvim.current.window.buffer.number}\n")
         if self.buffer.number != self.nvim.current.buffer.number:
             return
         if self.buffer.number != self.nvim.current.window.buffer.number:
