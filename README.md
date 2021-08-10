@@ -197,6 +197,7 @@ Here is a list of the currently handled mimetypes:
 
 - `text/plain`: Plain text. Shown as text in the output window's buffer.
 - `image/png`: A PNG image. Shown with [Ueberzug](https://github.com/seebye/ueberzug).
+- `image/svg+xml`: A SVG image. Rendered into a PNG with [CairoSVG](https://cairosvg.org/) and shown with [Ueberzug](https://github.com/seebye/ueberzug).
 
 This already provides quite a bit of basic functionality. As development continues, more mimetypes will be added.
 
