@@ -204,6 +204,11 @@ class TextLnOutputChunk(TextOutputChunk):
         self.text = text + "\n"
 
 
+class BadOutputChunk(TextLnOutputChunk):
+    def __init__(self, mimetypes: List[str]):
+        self.text = "<No usable MIMEtype! Received mimetypes %r>" % mimetypes
+
+
 class ErrorOutputChunk(TextLnOutputChunk):
     def __init__(self, name: str, message: str, traceback: List[str]):
         self.text = "\n".join(
@@ -345,8 +350,7 @@ class JupyterRuntime:
         elif (text := data.get('text/plain')) is not None:
             return TextLnOutputChunk(text)
         else:
-            # TODO make this a special OutputChunk
-            raise RuntimeError("no usable mimetype available in output chunk")
+            return BadOutputChunk(list(data.keys()))
 
     def _tick_one(self, output: Output, message_type: str, content: dict) -> bool:
         if output._should_clear:
