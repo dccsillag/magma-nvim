@@ -26,4 +26,5 @@ function! health#magma#check() abort
     call s:python_module_check("ueberzug", "ueberzug")
     call s:python_module_check("PIL", "Pillow")
     call s:python_module_check("cairosvg", "cairosvg")
+    call s:python_module_check("pnglatex", "pnglatex")
 endfunction
