@@ -199,7 +199,12 @@ class TextOutputChunk(OutputChunk):
         return remove_ansi_codes(self.text)
 
 
-class ErrorOutputChunk(TextOutputChunk):
+class TextLnOutputChunk(TextOutputChunk):
+    def __init__(self, text: str):
+        self.text = text + "\n"
+
+
+class ErrorOutputChunk(TextLnOutputChunk):
     def __init__(self, name: str, message: str, traceback: List[str]):
         self.text = "\n".join(
             [
@@ -210,7 +215,7 @@ class ErrorOutputChunk(TextOutputChunk):
         )
 
 
-class AbortedOutputChunk(TextOutputChunk):
+class AbortedOutputChunk(TextLnOutputChunk):
     def __init__(self):
         self.text = "<Kernel aborted with no error message.>"
 
@@ -336,7 +341,7 @@ class JupyterRuntime:
                     pil_image.size,
                 )
         elif (text := data.get('text/plain')) is not None:
-            return TextOutputChunk(text)
+            return TextLnOutputChunk(text)
         else:
             # TODO make this a special OutputChunk
             raise RuntimeError("no usable mimetype available in output chunk")
@@ -571,12 +576,7 @@ class MagmaBuffer:
         lineno = 0
         shape = (win_col, win_row, win_width, win_height)
         if len(output.chunks) > 0:
-            chunktext = output.chunks[0].place(lineno, shape, self.canvas)
-            lines += chunktext
-            lineno += chunktext.count("\n")
-            for chunk in output.chunks[1:]:
-                lines += "\n\n"
-                lineno += 2
+            for chunk in output.chunks:
                 chunktext = chunk.place(lineno, shape, self.canvas)
                 lines += chunktext
                 lineno += chunktext.count("\n")
