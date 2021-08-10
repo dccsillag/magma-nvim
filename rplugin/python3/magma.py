@@ -276,8 +276,9 @@ class Output:
 
 
 class RuntimeState(Enum):
-    IDLE = 1
-    RUNNING = 2
+    STARTING = 0
+    IDLE     = 1
+    RUNNING  = 2
 
 
 class JupyterRuntime:
@@ -292,13 +293,19 @@ class JupyterRuntime:
     allocated_files: List[str]
 
     def __init__(self, kernel_name: str):
-        self.state = RuntimeState.IDLE
+        self.state = RuntimeState.STARTING
         self.kernel_name = kernel_name
 
-        self.kernel_manager, self.kernel_client = \
-            jupyter_client.manager.start_new_kernel(kernel_name=kernel_name)
+        self.kernel_manager = jupyter_client.manager.KernelManager(kernel_name=kernel_name)
+        self.kernel_manager.start_kernel()
+        self.kernel_client = self.kernel_manager.client()
+        assert isinstance(self.kernel_client, jupyter_client.blocking.client.BlockingKernelClient)
+        self.kernel_client.start_channels()
 
         self.allocated_files = []
+
+    def is_ready(self) -> bool:
+        return self.state.value > RuntimeState.STARTING.value
 
     def deinit(self):
         for path in self.allocated_files:
@@ -409,12 +416,24 @@ class JupyterRuntime:
         else:
             return False
 
-    def tick(self, output: Output) -> bool:
+    def tick(self, output: Optional[Output]) -> bool:
         did_stuff = False
+
+        assert isinstance(self.kernel_client, jupyter_client.blocking.client.BlockingKernelClient)
+
+        if not self.is_ready():
+            try:
+                self.kernel_client.wait_for_ready(timeout=0)
+                self.state = RuntimeState.IDLE
+                did_stuff = True
+            except RuntimeError:
+                return False
+
+        if output is None:
+            return did_stuff
 
         while True:
             try:
-                assert isinstance(self.kernel_client, jupyter_client.blocking.client.BlockingKernelClient)
                 message = self.kernel_client.get_iopub_msg(timeout=0)
 
                 if 'content' not in message or 'msg_type' not in message:
@@ -506,10 +525,16 @@ class MagmaBuffer:
     def tick(self):
         self._check_if_done_running()
 
-        if self.current_output:
-            did_stuff = self.runtime.tick(self.current_output)
-            if did_stuff:
-                self.update_interface()
+        was_ready = self.runtime.is_ready()
+        did_stuff = self.runtime.tick(self.current_output)
+        if did_stuff:
+            self.update_interface()
+        if not was_ready and self.runtime.is_ready():
+            self.nvim.api.notify(
+                "Kernel '%s' is ready." % self.runtime.kernel_name,
+                pynvim.logging.INFO,
+                {'title': "Magma"},
+            )
 
     def _get_header_text(self, output: Output) -> str:
         if output.execution_count is None:
