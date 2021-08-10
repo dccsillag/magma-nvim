@@ -33,10 +33,12 @@ class MagmaException(Exception):
 class MagmaOptions:
     automatically_open_output: bool
     show_mimetype_debug: bool
+    cell_highlight_group: str
 
     def __init__(self, nvim: Nvim):
         self.automatically_open_output = nvim.vars.get("magma_automatically_open_output", True)
         self.show_mimetype_debug = nvim.vars.get("magma_show_mimetype_debug", False)
+        self.cell_highlight_group = nvim.vars.get("magma_cell_highlight_group", "CursorLine")
 
 
 def nvimui(func):
@@ -695,13 +697,11 @@ class MagmaBuffer:
         self.updating_interface = False
 
     def _show_selected(self, span: Span) -> None:
-        # TODO: get a better highlight group
-        HIGHLIGHT_GROUP = 'Visual'
         if span.begin.lineno == span.end.lineno:
             self.nvim.funcs.nvim_buf_add_highlight(
                 self.buffer.number,
                 self.highlight_namespace,
-                HIGHLIGHT_GROUP,
+                self.options.cell_highlight_group,
                 span.begin.lineno,
                 span.begin.colno,
                 span.end.colno,
@@ -710,7 +710,7 @@ class MagmaBuffer:
             self.nvim.funcs.nvim_buf_add_highlight(
                 self.buffer.number,
                 self.highlight_namespace,
-                HIGHLIGHT_GROUP,
+                self.options.cell_highlight_group,
                 span.begin.lineno,
                 span.begin.colno,
                 -1,
@@ -719,7 +719,7 @@ class MagmaBuffer:
                 self.nvim.funcs.nvim_buf_add_highlight(
                     self.buffer.number,
                     self.highlight_namespace,
-                    HIGHLIGHT_GROUP,
+                    self.options.cell_highlight_group,
                     lineno,
                     0,
                     -1,
@@ -727,7 +727,7 @@ class MagmaBuffer:
             self.nvim.funcs.nvim_buf_add_highlight(
                 self.buffer.number,
                 self.highlight_namespace,
-                HIGHLIGHT_GROUP,
+                self.options.cell_highlight_group,
                 span.end.lineno,
                 0,
                 span.end.colno,
