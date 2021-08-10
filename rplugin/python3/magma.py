@@ -823,6 +823,10 @@ class Magma:
 
         self.buffers[self.nvim.current.buffer.number] = magma
 
+    def _deinit_buffer(self, magma: MagmaBuffer) -> None:
+        magma.deinit()
+        del self.buffers[magma.buffer.number]
+
     @pynvim.command("MagmaDeinit", nargs=0, sync=True)
     @nvimui
     def command_deinit(self) -> None:
@@ -833,9 +837,7 @@ class Magma:
 
         self._clear_interface()
 
-        magma.deinit()
-
-        del self.buffers[magma.buffer.number]
+        self._deinit_buffer(magma)
 
     def _do_evaluate(self, pos: Tuple[Tuple[int, int], Tuple[int, int]]) -> None:
         self._initialize_if_necessary()
@@ -945,6 +947,15 @@ class Magma:
     @nvimui
     def autocmd_bufenter(self):
         self._update_interface()
+
+    @pynvim.autocmd('BufUnload')
+    @nvimui
+    def autocmd_bufunload(self):
+        magma = self.buffers.get(int(self.nvim.funcs.expand('<abuf>')))
+        if magma is None:
+            return
+
+        self._deinit_buffer(magma)
 
     @pynvim.autocmd('ExitPre')
     def autocmd_exitpre(self):
