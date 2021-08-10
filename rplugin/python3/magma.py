@@ -31,9 +31,11 @@ class MagmaException(Exception):
 
 class MagmaOptions:
     automatically_open_output: bool
+    show_mimetype_debug: bool
 
     def __init__(self, nvim: Nvim):
         self.automatically_open_output = nvim.vars.get("magma_automatically_open_output", True)
+        self.show_mimetype_debug = nvim.vars.get("magma_show_mimetype_debug", False)
 
 
 # Adapted from [https://stackoverflow.com/a/14693789/4803382]:
@@ -210,6 +212,11 @@ class BadOutputChunk(TextLnOutputChunk):
         self.text = "<No usable MIMEtype! Received mimetypes %r>" % mimetypes
 
 
+class MimetypesOutputChunk(TextLnOutputChunk):
+    def __init__(self, mimetypes: List[str]):
+        self.text = "[DEBUG] Received mimetypes: %r" % mimetypes
+
+
 class ErrorOutputChunk(TextLnOutputChunk):
     def __init__(self, name: str, message: str, traceback: List[str]):
         self.text = "\n".join(
@@ -302,7 +309,9 @@ class JupyterRuntime:
 
     allocated_files: List[str]
 
-    def __init__(self, kernel_name: str):
+    options: MagmaOptions
+
+    def __init__(self, kernel_name: str, options: MagmaOptions):
         self.state = RuntimeState.STARTING
         self.kernel_name = kernel_name
 
@@ -313,6 +322,8 @@ class JupyterRuntime:
         self.kernel_client.start_channels()
 
         self.allocated_files = []
+
+        self.options = options
 
     def is_ready(self) -> bool:
         return self.state.value > RuntimeState.STARTING.value
@@ -351,6 +362,12 @@ class JupyterRuntime:
         else:
             return BadOutputChunk(list(data.keys()))
 
+    def _append_chunk(self, output: Output, data: dict, metadata: dict) -> None:
+        if self.options.show_mimetype_debug:
+            output.chunks.append(MimetypesOutputChunk(list(data.keys())))
+
+        output.chunks.append(self._to_outputchunk(data, metadata))
+
     def _tick_one(self, output: Output, message_type: str, content: dict) -> bool:
         if output._should_clear:
             output.chunks.clear()
@@ -382,7 +399,7 @@ class JupyterRuntime:
             # This doesn't really give us any relevant information.
             return False
         elif message_type == 'execute_result':
-            output.chunks.append(self._to_outputchunk(content['data'], content['metadata']))
+            self._append_chunk(output, content['data'], content['metadata'])
             return True
         elif message_type == 'error':
             output.chunks.append(ErrorOutputChunk(
@@ -397,7 +414,7 @@ class JupyterRuntime:
             return True
         elif message_type == 'display_data':
             # XXX: consider content['transient'], if we end up saving execution outputs.
-            output.chunks.append(self._to_outputchunk(content['data'], content['metadata']))
+            self._append_chunk(output, content['data'], content['metadata'])
             return True
         elif message_type == 'update_display_data':
             # We don't really want to bother with this type of message.
@@ -481,7 +498,7 @@ class MagmaBuffer:
         self.extmark_namespace = extmark_namespace
         self.buffer = buffer
 
-        self.runtime = JupyterRuntime(kernel_name)
+        self.runtime = JupyterRuntime(kernel_name, options)
 
         self.outputs = {}
         self.current_output = None
