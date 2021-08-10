@@ -39,12 +39,6 @@ class MagmaOptions:
         self.show_mimetype_debug = nvim.vars.get("magma_show_mimetype_debug", False)
 
 
-# Adapted from [https://stackoverflow.com/a/14693789/4803382]:
-ANSI_CODE_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-def remove_ansi_codes(text: str) -> str:
-    return ANSI_CODE_REGEX.sub('', text)
-
-
 def nvimui(func):
     def inner(self, *args, **kwargs):
         try:
@@ -196,11 +190,20 @@ class OutputChunk(ABC):
 class TextOutputChunk(OutputChunk):
     text: str
 
+    # Adapted from [https://stackoverflow.com/a/14693789/4803382]:
+    ANSI_CODE_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
     def __init__(self, text: str):
         self.text = text
 
+    def _cleanup_text(self, text: str) -> str:
+        # Adapted from [https://stackoverflow.com/a/14693789/4803382]:
+        text = self.ANSI_CODE_REGEX.sub('', text)
+        text = text.replace("\r\n", "\n")
+        return text
+
     def place(self, *_) -> str:
-        return remove_ansi_codes(self.text)
+        return self._cleanup_text(self.text)
 
 
 class TextLnOutputChunk(TextOutputChunk):
