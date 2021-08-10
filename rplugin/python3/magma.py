@@ -460,6 +460,7 @@ class MagmaBuffer:
     display_window: Optional[int]
     selected_cell: Optional[Span]
     should_open_display_window: bool
+    updating_interface: bool
 
     options: MagmaOptions
 
@@ -487,6 +488,7 @@ class MagmaBuffer:
         self.display_window = None
         self.selected_cell = None
         self.should_open_display_window = False
+        self.updating_interface = False
 
         self.options = options
 
@@ -597,6 +599,9 @@ class MagmaBuffer:
         return Position(self.nvim.current.buffer.number, lineno-1, colno-1)
 
     def clear_interface(self) -> None:
+        if self.updating_interface:
+            return
+
         self.nvim.funcs.nvim_buf_clear_namespace(
             self.buffer.number,
             self.highlight_namespace,
@@ -635,6 +640,8 @@ class MagmaBuffer:
 
         self.clear_interface()
 
+        self.updating_interface = True
+
         selected_cell = self._get_selected_span()
 
         if self.options.automatically_open_output:
@@ -648,6 +655,8 @@ class MagmaBuffer:
         if self.selected_cell is not None:
             self._show_selected(self.selected_cell)
         self.canvas.present()
+
+        self.updating_interface = False
 
     def _show_selected(self, span: Span) -> None:
         # TODO: get a better highlight group
