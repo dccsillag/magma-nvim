@@ -374,23 +374,8 @@ class JupyterRuntime:
             else:
                 return False
         elif message_type == 'execute_reply':
-            if content['status'] == 'ok':
-                output.chunks.append(TextOutputChunk(content['status'])) # FIXME
-                return True
-            elif content['status'] == 'error':
-                output.chunks.append(ErrorOutputChunk(
-                    content['ename'],
-                    content['evalue'],
-                    content['traceback']
-                ))
-                output.success = False
-                return True
-            elif content['status'] == 'abort':
-                output.chunks.append(AbortedOutputChunk())
-                output.success = False
-                return True
-            else:
-                return False
+            # This doesn't really give us any relevant information.
+            return False
         elif message_type == 'execute_result':
             output.chunks.append(self._to_outputchunk(content['data'], content['metadata']))
             return True
