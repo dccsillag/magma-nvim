@@ -23,6 +23,7 @@ import ueberzug.lib.v0 as ueberzug
 from ueberzug.process import get_pty_slave
 from PIL import Image
 import cairosvg
+from pnglatex import pnglatex
 
 
 class MagmaException(Exception):
@@ -365,6 +366,11 @@ class JupyterRuntime:
         elif (svg := data.get('image/svg+xml')) is not None:
             with self._alloc_file('png', 'wb') as (path, file):
                 cairosvg.svg2png(svg, write_to=file)
+            return self._to_image_chunk(path)
+        elif (tex := data.get('text/latex')) is not None:
+            with self._alloc_file('png', 'w') as (path, file):
+                pass
+            pnglatex(tex, path)
             return self._to_image_chunk(path)
         elif (text := data.get('text/plain')) is not None:
             return TextLnOutputChunk(text)
