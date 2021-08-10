@@ -704,7 +704,7 @@ class Magma:
 
     buffers: Dict[int, MagmaBuffer]
 
-    timer: int
+    timer: Optional[int]
 
     def __init__(self, nvim):
         self.nvim = nvim
@@ -712,6 +712,7 @@ class Magma:
 
         self.canvas = None
         self.buffers = {}
+        self.timer = None
 
     def _initialize(self) -> None:
         assert not self.initialized
@@ -736,6 +737,8 @@ class Magma:
             magma.deinit()
         if self.canvas is not None:
             self.canvas.__exit__()
+        if self.timer is not None:
+            self.nvim.funcs.timer_stop(self.timer)
 
     def _initialize_if_necessary(self) -> None:
         if not self.initialized:
