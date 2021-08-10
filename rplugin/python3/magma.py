@@ -300,8 +300,6 @@ class JupyterRuntime:
     kernel_manager: jupyter_client.KernelManager
     kernel_client: jupyter_client.KernelClient
 
-    counter: int
-
     allocated_files: List[str]
 
     def __init__(self, kernel_name: str):
