@@ -813,6 +813,20 @@ class Magma:
 
         self.buffers[self.nvim.current.buffer.number] = magma
 
+    @pynvim.command("MagmaDeinit", nargs=0, sync=True)
+    @nvimui
+    def command_deinit(self) -> None:
+        self._initialize_if_necessary()
+
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        self._clear_interface()
+
+        magma.deinit()
+
+        del self.buffers[magma.buffer.number]
+
     def _do_evaluate(self, pos: Tuple[Tuple[int, int], Tuple[int, int]]) -> None:
         self._initialize_if_necessary()
 
