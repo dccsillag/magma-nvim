@@ -38,11 +38,11 @@ Note that you will still need to configure keymappings -- see [Keybindings](#key
 If you want a quickstart, these are the author's suggestions of mappings and options (beware of potential conflicts of these mappings with your own!):
 
 ```vim
-nnoremap <silent> gr  :MagmaEvaluateOperator<CR>
-nnoremap <silent> grr :MagmaEvaluateLine<CR>
-vnoremap <silent> gr  :<C-u>MagmaEvaluateVisual<CR>
-nnoremap <silent> grd :MagmaDelete<CR>
-nnoremap <silent> gro :MagmaShowOutput<CR>
+nnoremap <silent><expr> gr  :MagmaEvaluateOperator<CR>
+nnoremap <silent>       grr :MagmaEvaluateLine<CR>
+xnoremap <silent>       gr  :<C-u>MagmaEvaluateVisual<CR>
+nnoremap <silent>       grd :MagmaDelete<CR>
+nnoremap <silent>       gro :MagmaShowOutput<CR>
 
 let g:magma_automatically_open_output = v:false
 ```
@@ -115,13 +115,13 @@ Example usage (after having selected some text):
 
 Evaluate the text given by some operator.
 
-Example usage:
+This won't do much outside of an `<expr>` mapping. Example usage:
 
 ```vim
-:MagmaEvaluateOperator
+nnoremap <expr> gr nvim_exec('MagmaEvaluateOperator', v:true)
 ```
 
-Upon running this, you will enter operator mode, with which you will be able to select text you want to execute. You can, of course, hit ESC to cancel, as usual with operator mode.
+Upon using this mapping, you will enter operator mode, with which you will be able to select text you want to execute. You can, of course, hit ESC to cancel, as usual with operator mode.
 
 #### MagmaDelete
 
@@ -150,9 +150,9 @@ Example usage:
 It is recommended to map all the evaluate commands to the same mapping (in different modes). For example, if we wanted to bind evaluation to `gr`:
 
 ```vim
-nnoremap <silent> gr  :MagmaEvaluateOperator<CR>
-nnoremap <silent> grr :MagmaEvaluateLine<CR>
-vnoremap <silent> gr  :<C-u>MagmaEvaluateVisual<CR>
+nnoremap <expr><silent> gr  nvim_exec('MagmaEvaluateOperator', v:true)
+nnoremap <silent>       grr :MagmaEvaluateLine<CR>
+xnoremap <silent>       gr  :<C-u>MagmaEvaluateVisual<CR>
 ```
 
 This way, `gr` will behave just like standard keys such as `y` and `d`.
