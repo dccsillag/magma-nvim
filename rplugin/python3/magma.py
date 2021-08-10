@@ -456,6 +456,7 @@ class MagmaBuffer:
 
     display_buffer: Buffer
     display_window: Optional[int]
+    selected_cell: Optional[Span]
     should_open_display_window: bool
 
     options: MagmaOptions
@@ -482,6 +483,8 @@ class MagmaBuffer:
 
         self.display_buffer = self.nvim.buffers[self.nvim.funcs.nvim_create_buf(False, True)]
         self.display_window = None
+        self.selected_cell = None
+        self.should_open_display_window = False
 
         self.options = options
 
@@ -500,6 +503,7 @@ class MagmaBuffer:
 
         self.queued_outputs.put(new_output)
 
+        self.selected_cell = span
         self.should_open_display_window = True
         self.update_interface()
 
@@ -613,26 +617,29 @@ class MagmaBuffer:
         return selected
 
     def delete_cell(self) -> None:
-        selected = self._get_selected_span()
-        if selected is None:
+        self.selected_cell = self._get_selected_span()
+        if self.selected_cell is None:
             return
 
-        del self.outputs[selected]
+        del self.outputs[self.selected_cell]
 
         self.update_interface()
 
     def update_interface(self) -> None:
         self._clear_interface()
 
-        selected = self._get_selected_span()
+        selected_cell = self._get_selected_span()
 
         if self.options.automatically_open_output:
             self.should_open_display_window = True
-
-        if selected is not None:
-            self._show_selected(selected)
         else:
-            self.should_open_display_window = False
+            if self.selected_cell != selected_cell:
+                self.should_open_display_window = False
+
+        self.selected_cell = selected_cell
+
+        if self.selected_cell is not None:
+            self._show_selected(self.selected_cell)
         self.canvas.present()
 
     def _show_selected(self, span: Span) -> None:
