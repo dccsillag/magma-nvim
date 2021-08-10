@@ -251,7 +251,7 @@ class ImageOutputChunk(OutputChunk):
             fretint = fcntl.ioctl(fd_pty, termios.TIOCGWINSZ, farg)
             rows, cols, xpixels, ypixels = struct.unpack("HHHH", fretint)
 
-            return xpixels/cols, ypixels/rows
+            return xpixels//cols, ypixels//rows
 
     def place(self, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
         x, y, w, h = shape
@@ -263,6 +263,7 @@ class ImageOutputChunk(OutputChunk):
             nlines = max_nlines
         else:
             nlines = floor(((self.img_height/ypixels)/(self.img_width/xpixels))*w)
+        nlines = max(1, min(nlines, self.img_height//ypixels))
 
         canvas.add_image(
             self.img_path,
