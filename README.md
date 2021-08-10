@@ -73,7 +73,9 @@ Jupyter provides a rich set of outputs. To see what we can currently handle, see
 
 #### MagmaInit
 
-This command initializes a runtime for the current buffer. It takes a single argument, the Jupyter kernel's name. For example,
+This command initializes a runtime for the current buffer.
+
+It can take a single argument, the Jupyter kernel's name. For example,
 
 ```vim
 :MagmaInit python3
@@ -81,7 +83,13 @@ This command initializes a runtime for the current buffer. It takes a single arg
 
 will initialize the current buffer with a `python3` kernel.
 
-**Note:** A more friendly runtime initialization UI is planned.
+It can also be called with no arguments, as such:
+
+```vim
+:MagmaInit
+```
+
+This will prompt you for which kernel you want to launch (from the list of available kernels).
 
 #### MagmaEvaluateLine
 
