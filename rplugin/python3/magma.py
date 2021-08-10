@@ -7,7 +7,6 @@ from queue import Empty as EmptyQueueException, Queue
 import base64
 import hashlib
 import re
-import io
 import os
 import tempfile
 import termios
@@ -827,7 +826,7 @@ class Magma:
     def _ask_for_kernel(self) -> str:
         return self._ask_for_choice(
             "Select the kernel to launch:",
-            list(jupyter_client.kernelspec.find_kernel_specs().keys()),
+            list(jupyter_client.kernelspec.find_kernel_specs().keys()), # type: ignore
         )
 
     @pynvim.command("MagmaInit", nargs='?', sync=True)
