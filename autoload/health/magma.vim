@@ -25,4 +25,5 @@ function! health#magma#check() abort
     call s:python_module_check("jupyter_client", "jupyter-client")
     call s:python_module_check("ueberzug", "ueberzug")
     call s:python_module_check("PIL", "Pillow")
+    call s:python_module_check("cairosvg", "cairosvg")
 endfunction
