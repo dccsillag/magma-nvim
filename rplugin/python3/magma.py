@@ -196,7 +196,7 @@ class TextOutputChunk(OutputChunk):
         self.text = text
 
     def place(self, *_) -> str:
-        return self.text
+        return remove_ansi_codes(self.text)
 
 
 class ErrorOutputChunk(TextOutputChunk):
