@@ -91,6 +91,16 @@ It can also be called with no arguments, as such:
 
 This will prompt you for which kernel you want to launch (from the list of available kernels).
 
+#### MagmaDeinit
+
+This command deinitializes the current buffer's runtime and magma instance.
+
+```vim
+:MagmaDeinit
+```
+
+**Note** You don't need to run this, as deinitialization will happen automatically upon closing Vim or the buffer being unloaded. This command exists in case you just want to make Magma stop running.
+
 #### MagmaEvaluateLine
 
 Evaluate the current line.
