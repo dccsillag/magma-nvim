@@ -317,6 +317,8 @@ class JupyterRuntime:
         for path in self.allocated_files:
             os.remove(path)
 
+        self.kernel_client.shutdown()
+
     def run_code(self, code: str) -> Output:
         self.kernel_client.execute(code)
 
