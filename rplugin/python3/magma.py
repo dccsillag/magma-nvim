@@ -492,7 +492,7 @@ class MagmaBuffer:
 
     outputs: Dict[Span, Output]
     current_output: Optional[Output]
-    queued_outputs: Queue[Output]
+    queued_outputs: 'Queue[Output]'
 
     display_buffer: Buffer
     display_window: Optional[int]
