@@ -7,6 +7,7 @@ Magma is a NeoVim plugin for running code interactively with Jupyter.
 ## Requirements
 
 - NeoVim 0.5+
+- Python 3.8+
 - Required Python packages:
     - [`pynvim`](https://github.com/neovim/pynvim) (for the Remote Plugin API)
     - [`jupyter_client`](https://github.com/jupyter/jupyter_client) (for interacting with Jupyter)
