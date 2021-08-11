@@ -1006,7 +1006,11 @@ class Magma:
     @pynvim.autocmd('BufUnload')
     @nvimui
     def autocmd_bufunload(self):
-        magma = self.buffers.get(int(self.nvim.funcs.expand('<abuf>')))
+        abuf_str = self.nvim.funcs.expand('<abuf>')
+        if not abuf_str:
+            return
+
+        magma = self.buffers.get(int(abuf_str))
         if magma is None:
             return
 
