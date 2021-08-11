@@ -2,20 +2,7 @@ from typing import Optional, Tuple, List
 from enum import Enum
 from abc import ABC, abstractmethod
 from math import floor
-import base64
-import hashlib
 import re
-import os
-import termios
-import fcntl
-import struct
-
-# FIXME: This is not really in Ueberzug's public API.
-#        We should move this function into this codebase.
-from ueberzug.process import get_pty_slave
-from PIL import Image
-import cairosvg
-from pnglatex import pnglatex
 
 from magma.utils import Canvas
 
@@ -83,6 +70,15 @@ class ImageOutputChunk(OutputChunk):
         self.img_width, self.img_height = img_shape
 
     def _get_char_pixelsize(self) -> Tuple[int, int]:
+        import termios
+        import fcntl
+        import struct
+        import os
+
+        # FIXME: This is not really in Ueberzug's public API.
+        #        We should move this function into this codebase.
+        from ueberzug.process import get_pty_slave
+
         pty = get_pty_slave(os.getppid())
         assert pty is not None
         with open(pty) as fd_pty:
@@ -140,6 +136,9 @@ class Output:
 
 def to_outputchunk(alloc_file, data: dict, _: dict) -> OutputChunk:
     def _to_image_chunk(path: str) -> OutputChunk:
+        import hashlib
+        from PIL import Image
+
         pil_image = Image.open(path)
         return ImageOutputChunk(
             path,
@@ -148,14 +147,20 @@ def to_outputchunk(alloc_file, data: dict, _: dict) -> OutputChunk:
         )
 
     if (imgdata := data.get('image/png')) is not None:
+        import base64
+
         with alloc_file('png', 'wb') as (path, file):
             file.write(base64.b64decode(str(imgdata)))  # type: ignore
         return _to_image_chunk(path)
     elif (svg := data.get('image/svg+xml')) is not None:
+        import cairosvg
+
         with alloc_file('png', 'wb') as (path, file):
             cairosvg.svg2png(svg, write_to=file)
         return _to_image_chunk(path)
     elif (tex := data.get('text/latex')) is not None:
+        from pnglatex import pnglatex
+
         with alloc_file('png', 'w') as (path, file):
             pass
         pnglatex(tex, path)
