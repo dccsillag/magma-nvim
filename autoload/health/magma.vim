@@ -39,4 +39,6 @@ function! health#magma#check() abort
     call s:python_module_check("PIL", "Pillow")
     call s:python_module_check("cairosvg", "cairosvg")
     call s:python_module_check("pnglatex", "pnglatex")
+    call s:python_module_check("plotly", "plotly")
+    call s:python_module_check("kaleido", "kaleido")
 endfunction

@@ -15,8 +15,11 @@ Magma is a NeoVim plugin for running code interactively with Jupyter.
     - [`Pillow`](https://github.com/python-pillow/Pillow) (also for displaying images, should be installed with `ueberzug`)
     - [`cairosvg`](https://cairosvg.org/) (for displaying SVG images)
     - [`pnglatex`](https://pypi.org/project/pnglatex/) (for displaying TeX formulas)
+    - `plotly` and `kaleido` (for displaying Plotly figures)
 
 You can do a `:checkhealth` to see if you are ready to go.
+
+**Note:** Python packages which are used only for the display of some specific kind of output are only imported when that output actually appears.
 
 ## Installation
 
