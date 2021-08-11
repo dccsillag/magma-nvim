@@ -158,6 +158,15 @@ def to_outputchunk(alloc_file, data: dict, _: dict) -> OutputChunk:
         with alloc_file('png', 'wb') as (path, file):
             cairosvg.svg2png(svg, write_to=file)
         return _to_image_chunk(path)
+    elif (figure_json := data.get('application/vnd.plotly.v1+json')) is not None:
+        from plotly.io import from_json
+        import json
+
+        figure = from_json(json.dumps(figure_json)) # type: ignore
+
+        with alloc_file('png', 'wb') as (path, file):
+            figure.write_image(file, engine="kaleido")
+        return _to_image_chunk(path)
     elif (tex := data.get('text/latex')) is not None:
         from pnglatex import pnglatex
 
