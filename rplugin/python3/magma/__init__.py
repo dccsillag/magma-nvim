@@ -313,7 +313,20 @@ class Magma:
             endfunction
         """)
 
+        self._set_autocommands()
+
         self.initialized = True
+
+    def _set_autocommands(self) -> None:
+        self.nvim.command("augroup magma")
+        self.nvim.command("  autocmd CursorMoved  * MagmaUpdateInterface")
+        self.nvim.command("  autocmd CursorMovedI * MagmaUpdateInterface")
+        self.nvim.command("  autocmd WinScrolled  * MagmaUpdateInterface")
+        self.nvim.command("  autocmd BufEnter     * MagmaUpdateInterface")
+        self.nvim.command("  autocmd BufLeave     * MagmaClearInterface")
+        self.nvim.command("  autocmd BufUnload    * MagmaOnBufferUnload")
+        self.nvim.command("  autocmd ExitPre      * MagmaOnExitPre")
+        self.nvim.command("augroup END")
 
     def _deinitialize(self) -> None:
         for magma in self.buffers.values():
@@ -508,34 +521,19 @@ class Magma:
         magma.should_open_display_window = True
         self._update_interface()
 
-    @pynvim.autocmd('CursorMoved', sync=True)
+    @pynvim.command("MagmaUpdateInterface", nargs=0, sync=True)
     @nvimui
-    def autocmd_cursormoved(self):
+    def command_update_interface(self) -> None:
         self._update_interface()
 
-    @pynvim.autocmd('CursorMovedI', sync=True)
+    @pynvim.command("MagmaClearInterface", nargs=0, sync=True)
     @nvimui
-    def autocmd_cursormovedi(self):
-        self._update_interface()
-
-    @pynvim.autocmd('WinScrolled', sync=True)
-    @nvimui
-    def autocmd_winscrolled(self):
-        self._update_interface()
-
-    @pynvim.autocmd('BufLeave', sync=True)
-    @nvimui
-    def autocmd_bufleave(self):
+    def command_clear_interface(self) -> None:
         self._clear_interface()
 
-    @pynvim.autocmd('BufEnter', sync=True)
+    @pynvim.command("MagmaOnBufferUnload", nargs=0, sync=True)
     @nvimui
-    def autocmd_bufenter(self):
-        self._update_interface()
-
-    @pynvim.autocmd('BufUnload')
-    @nvimui
-    def autocmd_bufunload(self):
+    def command_on_buffer_unload(self) -> None:
         abuf_str = self.nvim.funcs.expand('<abuf>')
         if not abuf_str:
             return
@@ -546,6 +544,7 @@ class Magma:
 
         self._deinit_buffer(magma)
 
-    @pynvim.autocmd('ExitPre')
-    def autocmd_exitpre(self):
+    @pynvim.command("MagmaOnExitPre", nargs=0, sync=True)
+    @nvimui
+    def command_on_exitpre(self) -> None:
         self._deinitialize()
