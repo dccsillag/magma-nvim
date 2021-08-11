@@ -551,6 +551,15 @@ class MagmaBuffer:
 
         self._check_if_done_running()
 
+    def reevaluate_cell(self) -> None:
+        self.selected_cell = self._get_selected_span()
+        if self.selected_cell is None:
+            raise MagmaException("Not in a cell")
+
+        code = self.selected_cell.get_text(self.nvim)
+
+        self.run_code(code, self.selected_cell)
+
     def _check_if_done_running(self) -> None:
         # TODO: refactor
         is_idle = self.current_output is None or \
@@ -937,6 +946,16 @@ class Magma:
         span = ((lineno, 0), (lineno, -1))
 
         self._do_evaluate(span)
+
+    @pynvim.command("MagmaReevaluateCell", nargs=0, sync=True)
+    @nvimui
+    def command_evaluate_cell(self) -> None:
+        self._initialize_if_necessary()
+
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        magma.reevaluate_cell()
 
     @pynvim.command("MagmaDelete", nargs=0, sync=True)
     @nvimui
