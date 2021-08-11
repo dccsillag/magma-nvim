@@ -44,6 +44,7 @@ If you want a quickstart, these are the author's suggestions of mappings and opt
 nnoremap <silent><expr> <LocalLeader>r  :MagmaEvaluateOperator<CR>
 nnoremap <silent>       <LocalLeader>rr :MagmaEvaluateLine<CR>
 xnoremap <silent>       <LocalLeader>r  :<C-u>MagmaEvaluateVisual<CR>
+nnoremap <silent>       <LocalLeader>rc :MagmaReevaluateCell<CR>
 nnoremap <silent>       <LocalLeader>rd :MagmaDelete<CR>
 nnoremap <silent>       <LocalLeader>ro :MagmaShowOutput<CR>
 
@@ -136,6 +137,14 @@ nnoremap <expr> <LocalLeader>r nvim_exec('MagmaEvaluateOperator', v:true)
 
 Upon using this mapping, you will enter operator mode, with which you will be able to select text you want to execute. You can, of course, hit ESC to cancel, as usual with operator mode.
 
+### MagmaReevaluateCell
+
+Reevaluate the currently selected cell.
+
+```vim
+:MagmaReevaluateCell
+```
+
 #### MagmaDelete
 
 Delete the currently selected cell. (If there is no selected cell, do nothing.)
@@ -166,6 +175,7 @@ It is recommended to map all the evaluate commands to the same mapping (in diffe
 nnoremap <expr><silent> <LocalLeader>r  nvim_exec('MagmaEvaluateOperator', v:true)
 nnoremap <silent>       <LocalLeader>rr :MagmaEvaluateLine<CR>
 xnoremap <silent>       <LocalLeader>r  :<C-u>MagmaEvaluateVisual<CR>
+nnoremap <silent> <LocalLeader>rc :MagmaReevaluateCell<CR>
 ```
 
 This way, `<LocalLeader>r` will behave just like standard keys such as `y` and `d`.
