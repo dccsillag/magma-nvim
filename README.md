@@ -175,7 +175,7 @@ It is recommended to map all the evaluate commands to the same mapping (in diffe
 nnoremap <expr><silent> <LocalLeader>r  nvim_exec('MagmaEvaluateOperator', v:true)
 nnoremap <silent>       <LocalLeader>rr :MagmaEvaluateLine<CR>
 xnoremap <silent>       <LocalLeader>r  :<C-u>MagmaEvaluateVisual<CR>
-nnoremap <silent> <LocalLeader>rc :MagmaReevaluateCell<CR>
+nnoremap <silent>       <LocalLeader>rc :MagmaReevaluateCell<CR>
 ```
 
 This way, `<LocalLeader>r` will behave just like standard keys such as `y` and `d`.
