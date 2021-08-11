@@ -137,7 +137,7 @@ nnoremap <expr> <LocalLeader>r nvim_exec('MagmaEvaluateOperator', v:true)
 
 Upon using this mapping, you will enter operator mode, with which you will be able to select text you want to execute. You can, of course, hit ESC to cancel, as usual with operator mode.
 
-### MagmaReevaluateCell
+#### MagmaReevaluateCell
 
 Reevaluate the currently selected cell.
 
