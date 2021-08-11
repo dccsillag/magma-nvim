@@ -306,12 +306,7 @@ class Magma:
         self.highlight_namespace = self.nvim.funcs.nvim_create_namespace("magma-highlights")
         self.extmark_namespace   = self.nvim.funcs.nvim_create_namespace("magma-extmarks")
 
-        self.timer = self.nvim.eval("timer_start(500, {-> nvim_command('MagmaTick')}, {'repeat': -1})") # type: ignore
-        self.nvim.command("""
-            function! g:MagmaOperatorfunc(type) abort
-                exec 'MagmaEvaluateFromOperator ' .. a:type
-            endfunction
-        """)
+        self.timer = self.nvim.eval("timer_start(500, 'MagmaTick', {'repeat': -1})") # type: ignore
 
         self._set_autocommands()
 
@@ -319,13 +314,13 @@ class Magma:
 
     def _set_autocommands(self) -> None:
         self.nvim.command("augroup magma")
-        self.nvim.command("  autocmd CursorMoved  * MagmaUpdateInterface")
-        self.nvim.command("  autocmd CursorMovedI * MagmaUpdateInterface")
-        self.nvim.command("  autocmd WinScrolled  * MagmaUpdateInterface")
-        self.nvim.command("  autocmd BufEnter     * MagmaUpdateInterface")
-        self.nvim.command("  autocmd BufLeave     * MagmaClearInterface")
-        self.nvim.command("  autocmd BufUnload    * MagmaOnBufferUnload")
-        self.nvim.command("  autocmd ExitPre      * MagmaOnExitPre")
+        self.nvim.command("  autocmd CursorMoved  * call MagmaUpdateInterface()")
+        self.nvim.command("  autocmd CursorMovedI * call MagmaUpdateInterface()")
+        self.nvim.command("  autocmd WinScrolled  * call MagmaUpdateInterface()")
+        self.nvim.command("  autocmd BufEnter     * call MagmaUpdateInterface()")
+        self.nvim.command("  autocmd BufLeave     * call MagmaClearInterface()")
+        self.nvim.command("  autocmd BufUnload    * call MagmaOnBufferUnload()")
+        self.nvim.command("  autocmd ExitPre      * call MagmaOnExitPre()")
         self.nvim.command("augroup END")
 
     def _deinitialize(self) -> None:
@@ -345,17 +340,6 @@ class Magma:
         if requires_instance and maybe_magma is None:
             raise MagmaException("Magma is not initialized; run `:MagmaInit <kernel_name>` to initialize.")
         return maybe_magma
-
-    @pynvim.command('MagmaTick', sync=True)
-    @nvimui
-    def tick(self) -> None:
-        self._initialize_if_necessary()
-
-        magma = self._get_magma(False)
-        if magma is None:
-            return
-
-        magma.tick()
 
     def _clear_interface(self) -> None:
         if not self.initialized:
@@ -451,33 +435,12 @@ class Magma:
 
         self._do_evaluate(span)
 
-    @pynvim.command("MagmaEvaluateFromOperator", nargs=1, sync=True)
-    @nvimui
-    def command_evaluate_from_marks(self, kind) -> None:
-        kind = kind[0]
-
-        _, lineno_begin, colno_begin, _ = self.nvim.funcs.getpos("'[")
-        _, lineno_end,   colno_end,   _ = self.nvim.funcs.getpos("']")
-
-        if kind == 'line':
-            colno_begin = 1
-            colno_end = -1
-        elif kind == 'char':
-            pass
-        else:
-            raise MagmaException(f"this kind of selection is not supported: '{kind}'")
-
-        span = ((lineno_begin-1, min(colno_begin, len(self.nvim.funcs.getline(lineno_begin)))-1),
-                (lineno_end-1,   min(colno_end,   len(self.nvim.funcs.getline(  lineno_end)))))
-
-        self._do_evaluate(span)
-
     @pynvim.command("MagmaEvaluateOperator", sync=True)
     @nvimui
     def command_evaluate_operator(self) -> None:
         self._initialize_if_necessary()
 
-        self.nvim.options['operatorfunc'] = 'g:MagmaOperatorfunc'
+        self.nvim.options['operatorfunc'] = 'MagmaOperatorfunc'
         self.nvim.out_write("g@\n")
 
     @pynvim.command("MagmaEvaluateLine", nargs=0, sync=True)
@@ -521,19 +484,16 @@ class Magma:
         magma.should_open_display_window = True
         self._update_interface()
 
-    @pynvim.command("MagmaUpdateInterface", nargs=0, sync=True)
-    @nvimui
-    def command_update_interface(self) -> None:
-        self._update_interface()
+    # Internal functions which are exposed to VimScript
 
-    @pynvim.command("MagmaClearInterface", nargs=0, sync=True)
+    @pynvim.function("MagmaClearInterface", sync=True)
     @nvimui
-    def command_clear_interface(self) -> None:
+    def function_clear_interface(self, _) -> None:
         self._clear_interface()
 
-    @pynvim.command("MagmaOnBufferUnload", nargs=0, sync=True)
+    @pynvim.function("MagmaOnBufferUnload", sync=True)
     @nvimui
-    def command_on_buffer_unload(self) -> None:
+    def function_on_buffer_unload(self, _) -> None:
         abuf_str = self.nvim.funcs.expand('<abuf>')
         if not abuf_str:
             return
@@ -544,7 +504,47 @@ class Magma:
 
         self._deinit_buffer(magma)
 
-    @pynvim.command("MagmaOnExitPre", nargs=0, sync=True)
+    @pynvim.function("MagmaOnExitPre", sync=True)
     @nvimui
-    def command_on_exitpre(self) -> None:
+    def function_on_exit_pre(self, _) -> None:
         self._deinitialize()
+
+    @pynvim.function("MagmaTick", sync=True)
+    @nvimui
+    def function_magma_tick(self, _) -> None:
+        self._initialize_if_necessary()
+
+        magma = self._get_magma(False)
+        if magma is None:
+            return
+
+        magma.tick()
+
+    @pynvim.function("MagmaUpdateInterface", sync=True)
+    @nvimui
+    def function_update_interface(self, _) -> None:
+        self._update_interface()
+
+    @pynvim.function("MagmaOperatorfunc", sync=True)
+    @nvimui
+    def function_magma_operatorfunc(self, args) -> None:
+        if not args:
+            return
+
+        kind = args[0]
+
+        _, lineno_begin, colno_begin, _ = self.nvim.funcs.getpos("'[")
+        _, lineno_end,   colno_end,   _ = self.nvim.funcs.getpos("']")
+
+        if kind == 'line':
+            colno_begin = 1
+            colno_end = -1
+        elif kind == 'char':
+            pass
+        else:
+            raise MagmaException(f"this kind of selection is not supported: '{kind}'")
+
+        span = ((lineno_begin-1, min(colno_begin, len(self.nvim.funcs.getline(lineno_begin)))-1),
+                (lineno_end-1,   min(colno_end,   len(self.nvim.funcs.getline(  lineno_end)))))
+
+        self._do_evaluate(span)
