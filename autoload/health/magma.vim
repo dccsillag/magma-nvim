@@ -21,6 +21,18 @@ function! health#magma#check() abort
         call health#report_error('magma-nvim requires NeoVim >=0.5')
     endif
 
+    if !has("python3")
+        call health#report_error('magma-nvim requires a Python provider to be configured!')
+        return
+    endif
+
+    python3 import sys
+    if py3eval("sys.version_info.major == 3 and sys.version_info.minor >= 8")
+        call health#report_ok('Python >=3.8')
+    else
+        call health#report_error('magma-nvim requires Python >=3.8')
+    endif
+
     call s:python_module_check("pynvim", "pynvim")
     call s:python_module_check("jupyter_client", "jupyter-client")
     call s:python_module_check("ueberzug", "ueberzug")
