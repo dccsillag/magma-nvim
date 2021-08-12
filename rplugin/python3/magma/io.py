@@ -1,6 +1,10 @@
 from typing import Type, Optional
+import os
 
-from magma.utils        import Span, DynamicPosition
+from pynvim.api import Buffer
+
+from magma.utils        import MagmaException, Span, DynamicPosition
+from magma.options      import MagmaOptions
 from magma.outputchunks import OutputStatus, Output, to_outputchunk
 from magma.magmabuffer  import MagmaBuffer
 
@@ -14,6 +18,17 @@ class MagmaIOError(Exception):
         if type_ is not None and not isinstance(value, type_):
             raise cls(f"Incorrect type for key '{key}': expected {type_.__name__}, got {type(value).__name__}")
         return value
+
+
+def get_default_save_file(options: MagmaOptions, buffer: Buffer) -> str:
+    # XXX: this is string containment checking. Beware.
+    if 'nofile' in buffer.options['buftype']:
+        raise MagmaException("Buffer does not correspond to a file")
+
+    mangled_name = buffer.name \
+        .replace("%", "%%").replace("/", "%")
+
+    return os.path.join(options.save_path, mangled_name + ".json")
 
 
 def load(magmabuffer: MagmaBuffer, data: dict) -> None:

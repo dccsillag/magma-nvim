@@ -1,5 +1,6 @@
 from typing import Optional, Tuple, Dict, List
 import json
+import os
 
 import pynvim
 from pynvim import Nvim
@@ -8,7 +9,7 @@ from magma.options      import MagmaOptions
 from magma.utils        import MagmaException, nvimui, Canvas, DynamicPosition, Span
 from magma.runtime      import get_available_kernels
 from magma.magmabuffer  import MagmaBuffer
-from magma.io           import MagmaIOError, save, load
+from magma.io           import MagmaIOError, save, load, get_default_save_file
 
 
 @pynvim.plugin
@@ -224,12 +225,19 @@ class Magma:
         magma.should_open_display_window = True
         self._update_interface()
 
-    @pynvim.command("MagmaSave", nargs=1, sync=True)
+    @pynvim.command("MagmaSave", nargs='?', sync=True)
     @nvimui
     def command_save(self, args: List[str]) -> None:
-        path = args[0]
-
         self._initialize_if_necessary()
+
+        if args:
+            path = args[0]
+        else:
+            path = get_default_save_file(MagmaOptions(self.nvim), self.nvim.current.buffer)
+
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
 
         magma = self._get_magma(True)
         assert magma is not None
@@ -237,12 +245,15 @@ class Magma:
         with open(path, 'w') as file:
             json.dump(save(magma), file)
 
-    @pynvim.command("MagmaLoad", nargs=1, sync=True)
+    @pynvim.command("MagmaLoad", nargs='?', sync=True)
     @nvimui
     def command_load(self, args: List[str]) -> None:
-        path = args[0]
-
         self._initialize_if_necessary()
+
+        if args:
+            path = args[0]
+        else:
+            path = get_default_save_file(MagmaOptions(self.nvim), self.nvim.current.buffer)
 
         if self.nvim.current.buffer.number in self.buffers:
             raise MagmaException("Magma is already initialized; MagmaLoad initializes Magma.")
