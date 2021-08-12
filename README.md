@@ -170,6 +170,30 @@ Example usage:
 :MagmaShowOutput
 ```
 
+#### MagmaSave
+
+Save the current cells and evaluated outputs into a JSON file.
+
+Example usage:
+
+```vim
+:MagmaSave file_to_save.json
+```
+
+This file can then be loaded again with [`:MagmaLoad`](#magmaload)
+
+#### MagmaLoad
+
+Load the cells and evaluated outputs stored in a given JSON file.
+
+Example usage:
+
+```vim
+:MagmaLoad file_to_load.json
+```
+
+The file should have been generated with [`:MagmaSave`](#magmasave)
+
 ## Keybindings
 
 It is recommended to map all the evaluate commands to the same mapping (in different modes). For example, if we wanted to bind evaluation to `<LocalLeader>r`:
