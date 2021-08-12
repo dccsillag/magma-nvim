@@ -162,20 +162,21 @@ class MagmaBuffer:
 
         # Open output window
         assert self.display_window is None
-        self.display_window = self.nvim.funcs.nvim_open_win(
-            self.display_buffer.number,
-            False,
-            {
-                'relative': 'win',
-                'col': 0,
-                'row': win_row,
-                'width': win_width,
-                'height': min(win_height - win_row, len(lines)+1),
-                'anchor': 'NW',
-                'style': 'minimal',
-                'focusable': False,
-            }
-        )
+        if win_row < win_height:
+            self.display_window = self.nvim.funcs.nvim_open_win(
+                self.display_buffer.number,
+                False,
+                {
+                    'relative': 'win',
+                    'col': 0,
+                    'row': win_row,
+                    'width': win_width,
+                    'height': min(win_height - win_row, len(lines)+1),
+                    'anchor': 'NW',
+                    'style': 'minimal',
+                    'focusable': False,
+                }
+            )
 
     def _get_cursor_position(self) -> Position:
         _, lineno, colno, _, _ = self.nvim.funcs.getcurpos()
