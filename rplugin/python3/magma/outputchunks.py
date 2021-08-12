@@ -143,6 +143,7 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
     def _to_image_chunk(path: str) -> OutputChunk:
         import hashlib
         from PIL import Image
+        import ueberzug as _
 
         pil_image = Image.open(path)
         return ImageOutputChunk(
@@ -151,19 +152,22 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
             pil_image.size,
         )
 
-    if (imgdata := data.get('image/png')) is not None:
+    # Output chunk functions:
+    def _from_image_png(imgdata) -> OutputChunk:
         import base64
 
         with alloc_file('png', 'wb') as (path, file):
             file.write(base64.b64decode(str(imgdata)))  # type: ignore
-        chunk = _to_image_chunk(path)
-    elif (svg := data.get('image/svg+xml')) is not None:
+        return _to_image_chunk(path)
+
+    def _from_image_svgxml(svg) -> OutputChunk:
         import cairosvg
 
         with alloc_file('png', 'wb') as (path, file):
             cairosvg.svg2png(svg, write_to=file)
-        chunk = _to_image_chunk(path)
-    elif (figure_json := data.get('application/vnd.plotly.v1+json')) is not None:
+        return _to_image_chunk(path)
+
+    def _from_application_plotly(figure_json) -> OutputChunk:
         from plotly.io import from_json
         import json
 
@@ -171,17 +175,38 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
 
         with alloc_file('png', 'wb') as (path, file):
             figure.write_image(file, engine="kaleido")
-        chunk = _to_image_chunk(path)
-    elif (tex := data.get('text/latex')) is not None:
+        return _to_image_chunk(path)
+
+    def _from_latex(tex) -> OutputChunk:
         from pnglatex import pnglatex
 
-        with alloc_file('png', 'w') as (path, file):
+        with alloc_file('png', 'w') as (path, _):
             pass
         pnglatex(tex, path)
-        chunk = _to_image_chunk(path)
-    elif (text := data.get('text/plain')) is not None:
-        chunk = TextLnOutputChunk(text)
-    else:
+        return _to_image_chunk(path)
+
+    def _from_plaintext(text) -> OutputChunk:
+        return TextLnOutputChunk(text)
+
+    OUTPUT_CHUNKS = {
+        'image/png': _from_image_png,
+        'image/svg+xml': _from_image_svgxml,
+        'application/vnd.plotly.v1+json': _from_application_plotly,
+        'text/latex': _from_latex,
+        'text/plain': _from_plaintext,
+    }
+
+    chunk = None
+    for mimetype, process_func in OUTPUT_CHUNKS.items():
+        try:
+            maybe_data = data.get(mimetype)
+            if maybe_data is not None:
+                chunk = process_func(maybe_data)
+                break
+        except ImportError:
+            continue
+
+    if chunk is None:
         chunk = BadOutputChunk(list(data.keys()))
 
     chunk.jupyter_data = data

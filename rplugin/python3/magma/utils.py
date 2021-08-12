@@ -2,7 +2,10 @@ from typing import Union, List, Set, Dict
 import os
 
 from pynvim import Nvim
-import ueberzug.lib.v0 as ueberzug
+try:
+    import ueberzug.lib.v0 as ueberzug
+except ImportError:
+    ueberzug = None
 
 
 class MagmaException(Exception):
@@ -20,15 +23,18 @@ def nvimui(func):
 
 
 class Canvas:
-    ueberzug_canvas: ueberzug.Canvas
+    ueberzug_canvas: 'ueberzug.Canvas' # type: ignore
 
-    identifiers: Dict[str, ueberzug.Placement]
+    identifiers: Dict[str, 'ueberzug.Placement'] # type: ignore
 
     _visible: Set[str]
     _to_make_visible: Set[str]
     _to_make_invisible: Set[str]
 
     def __init__(self):
+        if ueberzug is None:
+            return
+
         self.ueberzug_canvas = ueberzug.Canvas()
         self.identifiers = {}
 
@@ -37,13 +43,22 @@ class Canvas:
         self._to_make_invisible = set()
 
     def __enter__(self, *args):
+        if ueberzug is None:
+            return
+
         return self.ueberzug_canvas.__enter__(*args)
 
     def __exit__(self, *args):
+        if ueberzug is None:
+            return
+
         if len(self.identifiers) > 0:
             return self.ueberzug_canvas.__exit__(*args)
 
     def present(self) -> None:
+        if ueberzug is None:
+            return
+
         self._to_make_invisible.difference_update(self._to_make_visible)
         for identifier in self._to_make_invisible:
             self.identifiers[identifier].visibility = ueberzug.Visibility.INVISIBLE
@@ -54,11 +69,17 @@ class Canvas:
         self._to_make_visible.clear()
 
     def clear(self):
+        if ueberzug is None:
+            return
+
         for identifier in self._visible:
             self._to_make_invisible.add(identifier)
         self._visible.clear()
 
     def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int):
+        if ueberzug is None:
+            return
+
         if width > 0 and height > 0:
             identifier += f"-{os.getpid()}-{x}-{y}-{width}-{height}"
 
