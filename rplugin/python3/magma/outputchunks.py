@@ -8,6 +8,9 @@ from magma.utils import Canvas
 
 
 class OutputChunk(ABC):
+    jupyter_data: Optional[dict] = None
+    jupyter_metadata: Optional[dict] = None
+
     @abstractmethod
     def place(self, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
         pass
@@ -122,6 +125,7 @@ class Output:
     chunks: List[OutputChunk]
     status: OutputStatus
     success: bool
+    old: bool
 
     _should_clear: bool
 
@@ -130,11 +134,12 @@ class Output:
         self.status = OutputStatus.HOLD
         self.chunks = []
         self.success = True
+        self.old = False
 
         self._should_clear = False
 
 
-def to_outputchunk(alloc_file, data: dict, _: dict) -> OutputChunk:
+def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
     def _to_image_chunk(path: str) -> OutputChunk:
         import hashlib
         from PIL import Image
@@ -151,13 +156,13 @@ def to_outputchunk(alloc_file, data: dict, _: dict) -> OutputChunk:
 
         with alloc_file('png', 'wb') as (path, file):
             file.write(base64.b64decode(str(imgdata)))  # type: ignore
-        return _to_image_chunk(path)
+        chunk = _to_image_chunk(path)
     elif (svg := data.get('image/svg+xml')) is not None:
         import cairosvg
 
         with alloc_file('png', 'wb') as (path, file):
             cairosvg.svg2png(svg, write_to=file)
-        return _to_image_chunk(path)
+        chunk = _to_image_chunk(path)
     elif (figure_json := data.get('application/vnd.plotly.v1+json')) is not None:
         from plotly.io import from_json
         import json
@@ -166,15 +171,20 @@ def to_outputchunk(alloc_file, data: dict, _: dict) -> OutputChunk:
 
         with alloc_file('png', 'wb') as (path, file):
             figure.write_image(file, engine="kaleido")
-        return _to_image_chunk(path)
+        chunk = _to_image_chunk(path)
     elif (tex := data.get('text/latex')) is not None:
         from pnglatex import pnglatex
 
         with alloc_file('png', 'w') as (path, file):
             pass
         pnglatex(tex, path)
-        return _to_image_chunk(path)
+        chunk = _to_image_chunk(path)
     elif (text := data.get('text/plain')) is not None:
-        return TextLnOutputChunk(text)
+        chunk = TextLnOutputChunk(text)
     else:
-        return BadOutputChunk(list(data.keys()))
+        chunk = BadOutputChunk(list(data.keys()))
+
+    chunk.jupyter_data = data
+    chunk.jupyter_metadata = metadata
+
+    return chunk

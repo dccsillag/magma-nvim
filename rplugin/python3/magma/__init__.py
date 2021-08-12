@@ -1,5 +1,7 @@
-from typing import Optional, Tuple, Dict, List
+from typing import Type, Optional, Tuple, Dict, List
 from queue import Queue
+import json
+import hashlib
 
 import pynvim
 from pynvim.api import Buffer
@@ -7,8 +9,19 @@ from pynvim import Nvim
 
 from magma.options      import MagmaOptions
 from magma.utils        import MagmaException, nvimui, Canvas, Position, DynamicPosition, Span
-from magma.outputchunks import Output, OutputStatus
+from magma.outputchunks import Output, OutputStatus, to_outputchunk
 from magma.runtime      import JupyterRuntime, get_available_kernels
+
+
+class MagmaIOError(Exception):
+    @classmethod
+    def assert_has_key(cls, data: dict, key: str, type_: Optional[Type] = None) -> None:
+        if key not in data:
+            raise cls(f"Missing key: {key}")
+        value = data[key]
+        if type_ is not None and not isinstance(value, type_):
+            raise cls(f"Incorrect type for key '{key}': expected {type_.__name__}, got {type(value).__name__}")
+        return value
 
 
 class MagmaBuffer:
@@ -130,7 +143,12 @@ class MagmaBuffer:
         else:
             raise ValueError('bad output.status: %s' % output.status)
 
-        return f"Out[{execution_count}]: {status}"
+        if output.old:
+            old = "[OLD] "
+        else:
+            old = ""
+
+        return f"{old}Out[{execution_count}]: {status}"
 
     def _show_outputs(self, output: Output, anchor: Position):
         # Get width&height, etc
@@ -272,8 +290,94 @@ class MagmaBuffer:
                 span.end.colno,
             )
 
-        if self.current_output is not None and self.should_open_display_window:
+        if self.should_open_display_window:
             self._show_outputs(self.outputs[span], span.end)
+
+    def _get_content_checksum(self) -> str:
+        return hashlib.md5(
+            "\n".join(self.nvim.current.buffer.api.get_lines(0, -1, True))
+            .encode("utf-8")
+        ).hexdigest()
+
+
+    def load(self, data: dict) -> None:
+        MagmaIOError.assert_has_key(data, 'content_checksum', str)
+
+        if self._get_content_checksum() != data['content_checksum']:
+            raise MagmaIOError("Buffer contents' checksum does not match!")
+
+        MagmaIOError.assert_has_key(data, 'cells', list)
+        for cell in data['cells']:
+            MagmaIOError.assert_has_key(cell, 'span', dict)
+            MagmaIOError.assert_has_key(cell['span'], 'begin', dict)
+            MagmaIOError.assert_has_key(cell['span']['begin'], 'lineno', int)
+            MagmaIOError.assert_has_key(cell['span']['begin'], 'colno', int)
+            MagmaIOError.assert_has_key(cell['span'], 'end', dict)
+            MagmaIOError.assert_has_key(cell['span']['end'], 'lineno', int)
+            MagmaIOError.assert_has_key(cell['span']['end'], 'colno', int)
+            begin_position = DynamicPosition(
+                self.nvim,
+                self.extmark_namespace,
+                self.buffer.number,
+                cell['span']['begin']['lineno'],
+                cell['span']['begin']['colno']
+            )
+            end_position = DynamicPosition(
+                self.nvim,
+                self.extmark_namespace,
+                self.buffer.number,
+                cell['span']['end']['lineno'],
+                cell['span']['end']['colno']
+            )
+            span = Span(begin_position, end_position)
+
+            # XXX: do we really want to have the execution count here?
+            #      what happens when the counts start to overlap?
+            MagmaIOError.assert_has_key(cell, "execution_count", int)
+            output = Output(cell['execution_count'])
+
+            MagmaIOError.assert_has_key(cell, "status", int)
+            output.status = OutputStatus(cell['status'])
+
+            MagmaIOError.assert_has_key(cell, "success", bool)
+            output.success = cell['success']
+
+            MagmaIOError.assert_has_key(cell, 'chunks', list)
+            for chunk in cell['chunks']:
+                MagmaIOError.assert_has_key(chunk, 'data', dict)
+                MagmaIOError.assert_has_key(chunk, 'metadata', dict)
+                output.chunks.append(to_outputchunk(self.runtime._alloc_file, chunk['data'], chunk['metadata']))
+
+            output.old = True
+
+            self.outputs[span] = output
+
+    def save(self) -> dict:
+        return {
+            "version": 1,
+            "kernel": self.runtime.kernel_name,
+            "content_checksum": self._get_content_checksum(),
+            "cells": [
+                {
+                    "span": {
+                        "begin": {"lineno": span.begin.lineno, "colno": span.begin.colno},
+                        "end": {"lineno": span.end.lineno, "colno": span.end.colno},
+                    },
+                    "execution_count": output.execution_count,
+                    "status": output.status.value,
+                    "success": output.success,
+                    "chunks": [
+                        {
+                            "data": chunk.jupyter_data,
+                            "metadata": chunk.jupyter_metadata,
+                        }
+                        for chunk in output.chunks
+                        if chunk.jupyter_data is not None and chunk.jupyter_metadata is not None
+                    ],
+                }
+                for span, output in self.outputs.items()
+            ],
+        }
 
 
 @pynvim.plugin
@@ -372,16 +476,7 @@ class Magma:
             get_available_kernels(), # type: ignore
         )
 
-    @pynvim.command("MagmaInit", nargs='?', sync=True)
-    @nvimui
-    def command_init(self, args: List[str]) -> None:
-        self._initialize_if_necessary()
-
-        if args:
-            kernel_name = args[0]
-        else:
-            kernel_name = self._ask_for_kernel()
-
+    def _initialize_buffer(self, kernel_name: str) -> MagmaBuffer:
         assert self.canvas is not None
         magma = MagmaBuffer(
             self.nvim,
@@ -394,6 +489,20 @@ class Magma:
         )
 
         self.buffers[self.nvim.current.buffer.number] = magma
+
+        return magma
+
+    @pynvim.command("MagmaInit", nargs='?', sync=True)
+    @nvimui
+    def command_init(self, args: List[str]) -> None:
+        self._initialize_if_necessary()
+
+        if args:
+            kernel_name = args[0]
+        else:
+            kernel_name = self._ask_for_kernel()
+
+        self._initialize_buffer(kernel_name)
 
     def _deinit_buffer(self, magma: MagmaBuffer) -> None:
         magma.deinit()
@@ -483,6 +592,53 @@ class Magma:
 
         magma.should_open_display_window = True
         self._update_interface()
+
+    @pynvim.command("MagmaSave", nargs=1, sync=True)
+    @nvimui
+    def command_save(self, args: List[str]) -> None:
+        path = args[0]
+
+        self._initialize_if_necessary()
+
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        with open(path, 'w') as file:
+            json.dump(magma.save(), file)
+
+    @pynvim.command("MagmaLoad", nargs=1, sync=True)
+    @nvimui
+    def command_load(self, args: List[str]) -> None:
+        path = args[0]
+
+        self._initialize_if_necessary()
+
+        if self.nvim.current.buffer.number in self.buffers:
+            raise MagmaException("Magma is already initialized; MagmaLoad initializes Magma.")
+
+        with open(path) as file:
+            data = json.load(file)
+
+        magma = None
+
+        try:
+            MagmaIOError.assert_has_key(data, 'version', int)
+            if (version := data['version']) != 1:
+                raise MagmaIOError(f"Bad version: {version}")
+
+            MagmaIOError.assert_has_key(data, 'kernel', str)
+            kernel_name = data['kernel']
+
+            magma = self._initialize_buffer(kernel_name)
+
+            magma.load(data)
+
+            self._update_interface()
+        except MagmaIOError as err:
+            if magma is not None:
+                self._deinit_buffer(magma)
+
+            raise MagmaException("Error while doing Magma IO: " + str(err))
 
     # Internal functions which are exposed to VimScript
 
