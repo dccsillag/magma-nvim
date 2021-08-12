@@ -96,7 +96,7 @@ class ImageOutputChunk(OutputChunk):
 
         xpixels, ypixels = self._get_char_pixelsize()
 
-        max_nlines = max(0, (h-y)-lineno - 3)
+        max_nlines = max(0, (h-y)-lineno - 1)
         if ((self.img_width/xpixels)/(self.img_height/ypixels))*max_nlines <= w:
             nlines = max_nlines
         else:
