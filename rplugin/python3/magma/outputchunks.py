@@ -96,12 +96,12 @@ class ImageOutputChunk(OutputChunk):
 
         xpixels, ypixels = self._get_char_pixelsize()
 
-        max_nlines = max(1, (h-y)-lineno - 3)
+        max_nlines = max(0, (h-y)-lineno - 3)
         if ((self.img_width/xpixels)/(self.img_height/ypixels))*max_nlines <= w:
             nlines = max_nlines
         else:
             nlines = floor(((self.img_height/ypixels)/(self.img_width/xpixels))*w)
-        nlines = max(1, min(nlines, self.img_height//ypixels))
+        nlines = min(nlines, self.img_height//ypixels)
 
         canvas.add_image(
             self.img_path,

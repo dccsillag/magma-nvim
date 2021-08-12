@@ -1,4 +1,5 @@
 from typing import Union, List, Set, Dict
+import os
 
 from pynvim import Nvim
 import ueberzug.lib.v0 as ueberzug
@@ -58,23 +59,24 @@ class Canvas:
         self._visible.clear()
 
     def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int):
-        identifier += f"-{x}-{y}-{width}-{height}"
+        if width > 0 and height > 0:
+            identifier += f"-{os.getpid()}-{x}-{y}-{width}-{height}"
 
-        if identifier in self.identifiers:
-            img = self.identifiers[identifier]
-        else:
-            img = self.ueberzug_canvas.create_placement(
-                identifier,
-                x=x,
-                y=y,
-                width=width,
-                height=height,
-                scaler=ueberzug.ScalerOption.FIT_CONTAIN.value,
-            )
-            self.identifiers[identifier] = img
-        img.path = path
+            if identifier in self.identifiers:
+                img = self.identifiers[identifier]
+            else:
+                img = self.ueberzug_canvas.create_placement(
+                    identifier,
+                    x=x,
+                    y=y,
+                    width=width,
+                    height=height,
+                    scaler=ueberzug.ScalerOption.FIT_CONTAIN.value,
+                )
+                self.identifiers[identifier] = img
+            img.path = path
 
-        self._to_make_visible.add(identifier)
+            self._to_make_visible.add(identifier)
 
 
 class Position:
