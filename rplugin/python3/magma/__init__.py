@@ -6,7 +6,8 @@ import pynvim
 from pynvim import Nvim
 
 from magma.options      import MagmaOptions
-from magma.utils        import MagmaException, nvimui, Canvas, DynamicPosition, Span
+from magma.utils        import MagmaException, nvimui, DynamicPosition, Span
+from magma.images       import Canvas, get_canvas_given_provider
 from magma.runtime      import get_available_kernels
 from magma.magmabuffer  import MagmaBuffer
 from magma.io           import MagmaIOError, save, load, get_default_save_file
@@ -25,6 +26,8 @@ class Magma:
 
     timer: Optional[int]
 
+    options: MagmaOptions
+
     def __init__(self, nvim):
         self.nvim = nvim
         self.initialized = False
@@ -36,7 +39,9 @@ class Magma:
     def _initialize(self) -> None:
         assert not self.initialized
 
-        self.canvas = Canvas()
+        self.options = MagmaOptions(self.nvim)
+
+        self.canvas = get_canvas_given_provider(self.options.image_provider)
         self.canvas.__enter__()
 
         self.highlight_namespace = self.nvim.funcs.nvim_create_namespace("magma-highlights")
@@ -116,7 +121,7 @@ class Magma:
             self.highlight_namespace,
             self.extmark_namespace,
             self.nvim.current.buffer,
-            MagmaOptions(self.nvim),
+            self.options,
             kernel_name,
         )
 
@@ -233,7 +238,7 @@ class Magma:
         if args:
             path = args[0]
         else:
-            path = get_default_save_file(MagmaOptions(self.nvim), self.nvim.current.buffer)
+            path = get_default_save_file(self.options, self.nvim.current.buffer)
 
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname):
@@ -253,7 +258,7 @@ class Magma:
         if args:
             path = args[0]
         else:
-            path = get_default_save_file(MagmaOptions(self.nvim), self.nvim.current.buffer)
+            path = get_default_save_file(self.options, self.nvim.current.buffer)
 
         if self.nvim.current.buffer.number in self.buffers:
             raise MagmaException("Magma is already initialized; MagmaLoad initializes Magma.")

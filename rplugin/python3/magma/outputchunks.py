@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from math import floor
 import re
 
-from magma.utils import Canvas
+from magma.images import Canvas
 
 
 class OutputChunk(ABC):

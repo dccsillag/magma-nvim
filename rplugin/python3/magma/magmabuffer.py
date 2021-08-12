@@ -7,7 +7,8 @@ from pynvim import Nvim
 from pynvim.api import Buffer
 
 from magma.options      import MagmaOptions
-from magma.utils        import MagmaException, Canvas, Position, Span
+from magma.images       import Canvas
+from magma.utils        import MagmaException, Position, Span
 from magma.outputchunks import Output, OutputStatus
 from magma.runtime      import JupyterRuntime
 
