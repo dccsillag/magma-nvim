@@ -47,7 +47,8 @@ class JupyterRuntime:
 
     def deinit(self):
         for path in self.allocated_files:
-            os.remove(path)
+            if os.path.exists(path):
+                os.remove(path)
 
         self.kernel_client.shutdown()
 
