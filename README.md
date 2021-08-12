@@ -172,27 +172,31 @@ Example usage:
 
 #### MagmaSave
 
-Save the current cells and evaluated outputs into a JSON file.
+Save the current cells and evaluated outputs into a JSON file, which can then be loaded back with [`:MagmaLoad`](#magmaload).
 
-Example usage:
+It has two forms; first, receiving a parameter, specifying where to save to:
 
 ```vim
 :MagmaSave file_to_save.json
 ```
 
-This file can then be loaded again with [`:MagmaLoad`](#magmaload)
+If that parameter is omitted, then one will be automatically generated using the `g:magma_save_path` option.
+
+```vim
+:MagmaSave
+```
 
 #### MagmaLoad
 
-Load the cells and evaluated outputs stored in a given JSON file.
+Load the cells and evaluated outputs stored in a given JSON file, which should have been generated with [`:MagmaSave`](#magmasave).
 
-Example usage:
+Like `MagmaSave`, It has two forms; first, receiving a parameter, specifying where to save to:
 
 ```vim
 :MagmaLoad file_to_load.json
 ```
 
-The file should have been generated with [`:MagmaSave`](#magmasave)
+If that parameter is omitted, then one will be automatically generated using the `g:magma_save_path` option.
 
 ## Keybindings
 
@@ -231,6 +235,14 @@ If this is false, then the output window will only be automatically shown when y
 Defaults to `"CursorLine"`.
 
 The highlight group to be used for highlighting cells.
+
+### `g:magma_save_path`
+
+Defaults to `stdpath("data") .. "/magma"`.
+
+Where to save/load with [`:MagmaSave`](#magmasave) and [`:MagmaLoad`](#magmaload) (with no parameters).
+
+The generated file is placed in this directory, with the filename itself being the buffer's name, with `%` replaced by `%%` and `/` replaced by `%`, and postfixed with the extension `.json`.
 
 ### [DEBUG] `g:magma_show_mimetype_debug`
 
