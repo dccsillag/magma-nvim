@@ -7,24 +7,61 @@ from magma.utils import MagmaException
 
 class Canvas(ABC):
     @abstractmethod
-    def __enter__(self, *_):
-        pass
+    def init(self) -> None:
+        """
+        Initialize the canvas.
+
+        This will be called before the canvas is ever used.
+        """
 
     @abstractmethod
-    def __exit__(self, *_):
-        pass
+    def deinit(self) -> None:
+        """
+        Deinitialize the canvas.
+
+        The canvas will not be used after this operation.
+        """
 
     @abstractmethod
     def present(self) -> None:
-        pass
+        """
+        Present the canvas.
+
+        This is called only when a redraw is necessary -- so, if desired, it can
+        be implemented so that `clear` and `add_image` only queue images as to
+        be drawn, and `present` actually performs the operaetions, in order to
+        reduce flickering.
+        """
 
     @abstractmethod
     def clear(self) -> None:
-        pass
+        """
+        Clear all images from the canvas.
+        """
 
     @abstractmethod
     def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int) -> None:
-        pass
+        """
+        Add an image to the canvas.
+
+        Parameters
+        - path: str
+          Path to the image we want to show
+        - identifier: str
+          A string which identifies this image (it is a checksum of of its
+          data). It is given for convenience for methods which require
+          identifiers, but can be safely ignored.
+        - x: int
+          Column number of where the image is supposed to be drawn at (top-left
+          corner).
+        - y: int
+          Row number of where the image is supposed to be drawn at (top-right
+          corner).
+        - width: int
+          The desired width for the image, in terminal columns.
+        - height: int
+          The desired height for the image, in terminal rows.
+        """
 
 
 class UeberzugCanvas(Canvas):
@@ -46,12 +83,12 @@ class UeberzugCanvas(Canvas):
         self._to_make_visible   = set()
         self._to_make_invisible = set()
 
-    def __enter__(self, *args):
-        return self.ueberzug_canvas.__enter__(*args)
+    def init(self):
+        return self.ueberzug_canvas.__enter__()
 
-    def __exit__(self, *args):
+    def deinit(self):
         if len(self.identifiers) > 0:
-            return self.ueberzug_canvas.__exit__(*args)
+            return self.ueberzug_canvas.__exit__()
 
     def present(self) -> None:
         import ueberzug.lib.v0 as ueberzug
@@ -94,6 +131,10 @@ class UeberzugCanvas(Canvas):
 
 
 def get_canvas_given_provider(name: str) -> Canvas:
+    """
+    Return a canvas object given its provider's name.
+    """
+
     if name == "ueberzug":
         return UeberzugCanvas()
     else:

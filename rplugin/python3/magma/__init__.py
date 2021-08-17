@@ -42,7 +42,7 @@ class Magma:
         self.options = MagmaOptions(self.nvim)
 
         self.canvas = get_canvas_given_provider(self.options.image_provider)
-        self.canvas.__enter__()
+        self.canvas.init()
 
         self.highlight_namespace = self.nvim.funcs.nvim_create_namespace("magma-highlights")
         self.extmark_namespace   = self.nvim.funcs.nvim_create_namespace("magma-extmarks")
@@ -68,7 +68,7 @@ class Magma:
         for magma in self.buffers.values():
             magma.deinit()
         if self.canvas is not None:
-            self.canvas.__exit__()
+            self.canvas.deinit()
         if self.timer is not None:
             self.nvim.funcs.timer_stop(self.timer)
 
