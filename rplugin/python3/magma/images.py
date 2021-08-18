@@ -2,7 +2,7 @@ from typing import Set, Dict, List, Any
 import os
 from abc import ABC, abstractmethod
 from pynvim import Nvim
-
+import time
 from magma.utils import MagmaException
 
 
@@ -183,6 +183,8 @@ class KittyImage:
                 f=100, # for now, only png
                 v=self.height,
                 s=self.width,
+                X=self.col,
+                Y=self.row,
                 C=1,
                 z=10,
                 data=f.read(),
@@ -225,11 +227,9 @@ class Kitty(Canvas):
         return
 
     def present(self) -> None:
-        row, col = self.nvim.current.window.cursor
         for image in self.to_show:
-            self.nvim.current.window.cursor = (image.row, image.col)
             image.show()
-        self.nvim.current.window.cursor = (row, col)
+            time.sleep(0.01)
         self.visible.update(self.to_show)
         self.to_show = set()
 
@@ -238,9 +238,10 @@ class Kitty(Canvas):
             image.hide()
         self.visible = set()
 
-    def add_image(self, path: str, _: str, x: int, y: int, width: int, height: int):
-        if path not in self.images:
-            self.images[path] = KittyImage(
+    def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int):
+        identifier += f"-{os.getpid()}-{x}-{y}-{width}-{height}"
+        if identifier not in self.images:
+            self.images[identifier] = KittyImage(
                 id=len(self.images),
                 path=path,
                 row=y,
@@ -249,7 +250,7 @@ class Kitty(Canvas):
                 height=height,
                 nvim=self.nvim,
             )
-        self.to_show.add(self.images[path])
+        self.to_show.add(self.images[identifier])
 
 
 def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:
