@@ -225,8 +225,11 @@ class Kitty(Canvas):
         return
 
     def present(self) -> None:
+        row, col = self.nvim.current.window.cursor
         for image in self.to_show:
+            self.nvim.current.window.cursor = (image.row, image.col)
             image.show()
+        self.nvim.current.window.cursor = (row, col)
         self.visible.update(self.to_show)
         self.to_show = set()
 
@@ -240,8 +243,8 @@ class Kitty(Canvas):
             self.images[path] = KittyImage(
                 id=len(self.images),
                 path=path,
-                row=x,
-                col=y,
+                row=y,
+                col=x,
                 width=width,
                 height=height,
                 nvim=self.nvim,
