@@ -1,6 +1,7 @@
-from typing import Set, Dict
+from typing import Set, Dict, List, Any
 import os
 from abc import ABC, abstractmethod
+from pynvim import Nvim
 
 from magma.utils import MagmaException
 
@@ -130,12 +131,128 @@ class UeberzugCanvas(Canvas):
             self._to_make_visible.add(identifier)
 
 
-def get_canvas_given_provider(name: str) -> Canvas:
-    """
-    Return a canvas object given its provider's name.
-    """
+# see https://sw.kovidgoyal.net/kitty/graphics-protocol/
+class KittyImage:
+    def __init__(self, id: int, path: str, row: int, col: int, width: int, height: int, nvim: Nvim):
+        self.id = id
+        self.path = path
+        self.row = row
+        self.col = col
+        self.width = width
+        self.height = height
+        self.nvim = nvim
 
+    def serialize_gr_command(self, **cmd):
+        payload = cmd.pop('payload', None)
+        cmd = ','.join('{}={}'.format(k, v) for k, v in cmd.items())
+        ans = []
+        w = ans.append
+        w(b'\033_G'), w(cmd.encode('ascii'))
+        if payload:
+            w(b';')
+            w(payload)
+        w(b'\033\\')
+        return b''.join(ans)
+
+
+    def write_chunked(self, **cmd):
+        from base64 import standard_b64encode
+
+        data = standard_b64encode(cmd.pop('data'))
+        while data:
+            chunk, data = data[:4096], data[4096:]
+            m = 1 if data else 0
+            # import sys
+            # sys.stdout.buffer.write(
+            self.nvim.lua.stdout.write(
+                self.serialize_gr_command(
+                    payload=chunk,
+                    m=m,
+                    **cmd
+                )
+            )
+            # sys.stdout.flush()
+            cmd.clear()
+
+
+    def show(self):
+        with open(self.path, 'rb') as f:
+            self.write_chunked(
+                a='T', # transmit directly to the terminal
+                i=self.id,
+                f=100, # for now, only png
+                v=self.height,
+                s=self.width,
+                C=1,
+                z=10,
+                data=f.read(),
+            )
+
+    def hide(self):
+        self.nvim.lua.stdout.write(
+            self.serialize_gr_command(
+                i=self.id,
+                a='d', # remove image
+            )
+        )
+
+
+class Kitty(Canvas):
+    nvim: Nvim
+    images: Dict[str, KittyImage]
+    visible: Set[KittyImage]
+    to_show: Set[KittyImage]
+
+    def __init__(self, nvim):
+        self.nvim = nvim
+        self.images = {}
+        self.visible = set()
+        self.to_show = set()
+        nvim.exec_lua("""
+            local fd = vim.loop.new_pipe(false)
+            fd:open(1)
+            local function write(data)
+                    fd:write(data)
+            end
+
+            stdout = {write = write}
+            """)
+
+    def init(self):
+        return self
+
+    def deinit(self):
+        return
+
+    def present(self) -> None:
+        for image in self.to_show:
+            image.show()
+        self.visible.update(self.to_show)
+        self.to_show = set()
+
+    def clear(self):
+        for image in self.visible:
+            image.hide()
+        self.visible = set()
+
+    def add_image(self, path: str, _: str, x: int, y: int, width: int, height: int):
+        if path not in self.images:
+            self.images[path] = KittyImage(
+                id=len(self.images),
+                path=path,
+                row=x,
+                col=y,
+                width=width,
+                height=height,
+                nvim=self.nvim,
+            )
+        self.to_show.add(self.images[path])
+
+
+def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:
     if name == "ueberzug":
         return UeberzugCanvas()
+    elif name == "kitty":
+        return Kitty(nvim)
     else:
         raise MagmaException(f"Unknown image provider: '{name}'")

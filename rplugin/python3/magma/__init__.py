@@ -41,7 +41,7 @@ class Magma:
 
         self.options = MagmaOptions(self.nvim)
 
-        self.canvas = get_canvas_given_provider(self.options.image_provider)
+        self.canvas = get_canvas_given_provider(self.options.image_provider, self.nvim)
         self.canvas.init()
 
         self.highlight_namespace = self.nvim.funcs.nvim_create_namespace("magma-highlights")
