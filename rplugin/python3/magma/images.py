@@ -162,8 +162,6 @@ class KittyImage:
         while data:
             chunk, data = data[:4096], data[4096:]
             m = 1 if data else 0
-            # import sys
-            # sys.stdout.buffer.write(
             self.nvim.lua.stdout.write(
                 self.serialize_gr_command(
                     payload=chunk,
@@ -171,7 +169,6 @@ class KittyImage:
                     **cmd
                 )
             )
-            # sys.stdout.flush()
             cmd.clear()
 
 
@@ -202,15 +199,17 @@ class KittyImage:
 class Kitty(Canvas):
     nvim: Nvim
     images: Dict[str, KittyImage]
+    to_make_visible: Set[str]
+    to_make_invisible: Set[str]
     visible: Set[str]
-    to_show: Set[str]
     next_id: int
 
     def __init__(self, nvim):
         self.nvim = nvim
         self.images = {}
         self.visible = set()
-        self.to_show = set()
+        self.to_make_visible = set()
+        self.to_make_invisible = set()
         self.next_id = 0
         nvim.exec_lua("""
             local fd = vim.loop.new_pipe(false)
@@ -228,21 +227,49 @@ class Kitty(Canvas):
     def deinit(self):
         return
 
+    def log(self,msg):
+        import pynvim
+        self.nvim.api.notify(
+            msg,
+            pynvim.logging.INFO,
+            {'title': "Magma"},
+        )
+
     def present(self) -> None:
-        for identifier in self.to_show:
-            image = self.images[identifier]
-            image.show()
+        # images to both show and hide should be ignored
+        to_work_on = self.to_make_visible.difference(
+            self.to_make_visible.intersection(self.to_make_invisible))
+        self.to_make_invisible.difference_update(self.to_make_visible)
+        for identifier in self.to_make_invisible:
+            self.images[identifier].hide()
             time.sleep(0.01)
-        self.visible.update(self.to_show)
-        self.to_show = set()
+        for identifier in to_work_on:
+            image = self.images[identifier]
+            def fn(nvim, image):
+                eventignore_save = self.nvim.options["eventignore"]
+                nvim.options["eventignore"] = "all"
+
+                org_position = nvim.current.window.cursor
+                nvim.current.window.cursor = (image.row, image.col)
+
+                image.show()
+
+                nvim.current.window.cursor = org_position
+                nvim.options["eventignore"] = eventignore_save
+            self.nvim.async_call(fn, self.nvim, image)
+        self.visible.update(self.to_make_visible)
+        self.to_make_invisible.clear()
+        self.to_make_visible.clear()
+
 
     def clear(self):
+        self.log('clear')
         for identifier in self.visible:
-            image = self.images[identifier]
-            image.hide()
-        self.visible = set()
+            self.to_make_invisible.add(identifier)
+        self.visible.clear()
 
     def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int):
+        self.log('add')
         identifier += f"-{os.getpid()}-{x}-{y}-{width}-{height}"
         if identifier not in self.images:
             self.images[identifier] = KittyImage(
@@ -255,7 +282,9 @@ class Kitty(Canvas):
                 nvim=self.nvim,
             )
             self.next_id += 1
-        self.to_show.add(identifier)
+        else:
+            self.images[identifier].path = path
+        self.to_make_visible.add(identifier)
 
 
 def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:
