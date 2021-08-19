@@ -219,40 +219,39 @@ class Kitty(Canvas):
             end
 
             stdout = {write = write}
-            """)
+        """)
 
     def init(self):
-        return self
+        pass
 
     def deinit(self):
-        return
-
-    def log(self,msg):
-        import pynvim
-        self.nvim.api.notify(
-            msg,
-            pynvim.logging.INFO,
-            {'title': "Magma"},
-        )
+        pass
 
     def present(self) -> None:
         # images to both show and hide should be ignored
-        to_work_on = self.to_make_visible.difference(
-            self.to_make_visible.intersection(self.to_make_invisible))
+        to_work_on = self.to_make_visible.difference(self.to_make_visible.intersection(self.to_make_invisible))
         self.to_make_invisible.difference_update(self.to_make_visible)
         for identifier in self.to_make_invisible:
-            self.images[identifier].hide()
-            time.sleep(0.01)
+            def hide_fn(image):
+                image.hide()
+                # we need the sleep here, otherwise the escape codes might `spill` over into the buffer when doing
+                # several rapid operations consectively
+                time.sleep(0.01)
+            self.nvim.async_call(hide_fn, self.images[identifier])
         for identifier in to_work_on:
             image = self.images[identifier]
             def fn(nvim, image):
-                eventignore_save = self.nvim.options["eventignore"]
+                eventignore_save = nvim.options["eventignore"]
                 nvim.options["eventignore"] = "all"
 
                 org_position = nvim.current.window.cursor
-                nvim.current.window.cursor = (image.row, image.col)
-
+                # we need to move the cursor to the place where we want to place the image.
+                # we need to make sure we are still in the buffer.
+                nvim.current.window.cursor = (
+                    min(image.row + 1, len(nvim.current.buffer)),
+                    image.col)
                 image.show()
+                time.sleep(0.01)
 
                 nvim.current.window.cursor = org_position
                 nvim.options["eventignore"] = eventignore_save
@@ -263,14 +262,11 @@ class Kitty(Canvas):
 
 
     def clear(self):
-        self.log('clear')
         for identifier in self.visible:
             self.to_make_invisible.add(identifier)
         self.visible.clear()
 
     def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int):
-        self.log('add')
-        identifier += f"-{os.getpid()}-{x}-{y}-{width}-{height}"
         if identifier not in self.images:
             self.images[identifier] = KittyImage(
                 id=self.next_id,
