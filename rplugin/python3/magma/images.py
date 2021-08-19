@@ -183,8 +183,6 @@ class KittyImage:
                 f=100, # for now, only png
                 v=self.height,
                 s=self.width,
-                X=self.col,
-                Y=self.row,
                 C=1,
                 z=10,
                 data=f.read(),
