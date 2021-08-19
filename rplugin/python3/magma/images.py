@@ -185,6 +185,7 @@ class KittyImage:
                 s=self.width,
                 C=1,
                 z=10,
+                q=2,
                 data=f.read(),
             )
 
@@ -193,6 +194,7 @@ class KittyImage:
             self.serialize_gr_command(
                 i=self.id,
                 a='d', # remove image
+                q=2,
             )
         )
 
@@ -200,14 +202,16 @@ class KittyImage:
 class Kitty(Canvas):
     nvim: Nvim
     images: Dict[str, KittyImage]
-    visible: Set[KittyImage]
-    to_show: Set[KittyImage]
+    visible: Set[str]
+    to_show: Set[str]
+    next_id: int
 
     def __init__(self, nvim):
         self.nvim = nvim
         self.images = {}
         self.visible = set()
         self.to_show = set()
+        self.next_id = 0
         nvim.exec_lua("""
             local fd = vim.loop.new_pipe(false)
             fd:open(1)
@@ -225,14 +229,16 @@ class Kitty(Canvas):
         return
 
     def present(self) -> None:
-        for image in self.to_show:
+        for identifier in self.to_show:
+            image = self.images[identifier]
             image.show()
             time.sleep(0.01)
         self.visible.update(self.to_show)
         self.to_show = set()
 
     def clear(self):
-        for image in self.visible:
+        for identifier in self.visible:
+            image = self.images[identifier]
             image.hide()
         self.visible = set()
 
@@ -240,7 +246,7 @@ class Kitty(Canvas):
         identifier += f"-{os.getpid()}-{x}-{y}-{width}-{height}"
         if identifier not in self.images:
             self.images[identifier] = KittyImage(
-                id=len(self.images),
+                id=self.next_id,
                 path=path,
                 row=y,
                 col=x,
@@ -248,7 +254,8 @@ class Kitty(Canvas):
                 height=height,
                 nvim=self.nvim,
             )
-        self.to_show.add(self.images[identifier])
+            self.next_id += 1
+        self.to_show.add(identifier)
 
 
 def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:
