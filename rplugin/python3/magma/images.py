@@ -131,7 +131,6 @@ class UeberzugCanvas(Canvas):
             self._to_make_visible.add(identifier)
 
 
-# see https://sw.kovidgoyal.net/kitty/graphics-protocol/
 class KittyImage:
     def __init__(self, id: int, path: str, row: int, col: int, width: int, height: int, nvim: Nvim):
         self.id = id
@@ -142,6 +141,7 @@ class KittyImage:
         self.height = height
         self.nvim = nvim
 
+# Adapted from https://sw.kovidgoyal.net/kitty/graphics-protocol/
     def serialize_gr_command(self, **cmd):
         payload = cmd.pop('payload', None)
         cmd = ','.join('{}={}'.format(k, v) for k, v in cmd.items())
