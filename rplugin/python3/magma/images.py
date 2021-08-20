@@ -152,7 +152,10 @@ class KittyImage:
             w(b';')
             w(payload)
         w(b'\033\\')
-        return b''.join(ans)
+        ans = b''.join(ans)
+        if 'tmux' in os.environ['TERM']:
+            ans = b'\033Ptmux;' + ans.replace(b'\033', b'\033\033') + b'\033\\'
+        return ans
 
 
     def write_chunked(self, **cmd):
