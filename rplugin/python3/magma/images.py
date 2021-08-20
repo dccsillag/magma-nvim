@@ -1,6 +1,9 @@
 from typing import Set, Dict
 import os
 from abc import ABC, abstractmethod
+import time
+
+from pynvim import Nvim
 
 from magma.utils import MagmaException
 
@@ -130,12 +133,163 @@ class UeberzugCanvas(Canvas):
             self._to_make_visible.add(identifier)
 
 
-def get_canvas_given_provider(name: str) -> Canvas:
-    """
-    Return a canvas object given its provider's name.
-    """
+class KittyImage:
+    # Adapted from https://sw.kovidgoyal.net/kitty/graphics-protocol/
 
+    def __init__(self, id: int, path: str, row: int, col: int, width: int, height: int, nvim: Nvim):
+        self.id = id
+        self.path = path
+        self.row = row
+        self.col = col
+        self.width = width
+        self.height = height
+        self.nvim = nvim
+
+    def serialize_gr_command(self, **cmd):
+        payload = cmd.pop('payload', None)
+        cmd = ','.join('{}={}'.format(k, v) for k, v in cmd.items())
+        ans = []
+        w = ans.append
+        w(b'\033_G'), w(cmd.encode('ascii'))
+        if payload:
+            w(b';')
+            w(payload)
+        w(b'\033\\')
+        ans = b''.join(ans)
+        if 'tmux' in os.environ['TERM']:
+            ans = b'\033Ptmux;' + ans.replace(b'\033', b'\033\033') + b'\033\\'
+        return ans
+
+    def write_chunked(self, **cmd):
+        from base64 import standard_b64encode
+
+        data = standard_b64encode(cmd.pop('data'))
+        while data:
+            chunk, data = data[:4096], data[4096:]
+            m = 1 if data else 0
+            self.nvim.lua.stdout.write(
+                self.serialize_gr_command(
+                    payload=chunk,
+                    m=m,
+                    **cmd
+                )
+            )
+            cmd.clear()
+
+    def show(self):
+        with open(self.path, 'rb') as f:
+            self.write_chunked(
+                a='T', # transmit directly to the terminal
+                i=self.id,
+                f=100, # for now, only png
+                v=self.height,
+                s=self.width,
+                C=1,
+                z=10,
+                q=2,
+                data=f.read(),
+            )
+
+    def hide(self):
+        self.nvim.lua.stdout.write(
+            self.serialize_gr_command(
+                i=self.id,
+                a='d', # remove image
+                q=2,
+            )
+        )
+
+
+class Kitty(Canvas):
+    nvim: Nvim
+    images: Dict[str, KittyImage]
+    to_make_visible: Set[str]
+    to_make_invisible: Set[str]
+    visible: Set[str]
+    next_id: int
+
+    def __init__(self, nvim):
+        self.nvim = nvim
+        self.images = {}
+        self.visible = set()
+        self.to_make_visible = set()
+        self.to_make_invisible = set()
+        self.next_id = 0
+        nvim.exec_lua("""
+            local fd = vim.loop.new_pipe(false)
+            fd:open(1)
+            local function write(data)
+                    fd:write(data)
+            end
+
+            stdout = {write = write}
+        """)
+
+    def init(self):
+        pass
+
+    def deinit(self):
+        pass
+
+    def present(self) -> None:
+        # images to both show and hide should be ignored
+        to_work_on = self.to_make_visible.difference(self.to_make_visible.intersection(self.to_make_invisible))
+        self.to_make_invisible.difference_update(self.to_make_visible)
+        for identifier in self.to_make_invisible:
+            def hide_fn(image):
+                image.hide()
+                # we need the sleep here, otherwise the escape codes might `spill` over into the buffer when doing
+                # several rapid operations consectively
+                time.sleep(0.01)
+            self.nvim.async_call(hide_fn, self.images[identifier])
+        for identifier in to_work_on:
+            image = self.images[identifier]
+            def fn(nvim, image):
+                eventignore_save = nvim.options["eventignore"]
+                nvim.options["eventignore"] = "all"
+
+                org_position = nvim.current.window.cursor
+                # we need to move the cursor to the place where we want to place the image.
+                # we need to make sure we are still in the buffer.
+                nvim.current.window.cursor = (
+                    min(image.row + 1, len(nvim.current.buffer)),
+                    image.col)
+                image.show()
+                time.sleep(0.01)
+
+                nvim.current.window.cursor = org_position
+                nvim.options["eventignore"] = eventignore_save
+            self.nvim.async_call(fn, self.nvim, image)
+        self.visible.update(self.to_make_visible)
+        self.to_make_invisible.clear()
+        self.to_make_visible.clear()
+
+    def clear(self):
+        for identifier in self.visible:
+            self.to_make_invisible.add(identifier)
+        self.visible.clear()
+
+    def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int):
+        if identifier not in self.images:
+            self.images[identifier] = KittyImage(
+                id=self.next_id,
+                path=path,
+                row=y,
+                col=x,
+                width=width,
+                height=height,
+                nvim=self.nvim,
+            )
+            self.next_id += 1
+        else:
+            self.images[identifier].path = path
+        self.to_make_visible.add(identifier)
+
+
+def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:
     if name == "ueberzug":
         return UeberzugCanvas()
+    elif name == "kitty":
+        return Kitty(nvim)
     else:
         raise MagmaException(f"Unknown image provider: '{name}'")
