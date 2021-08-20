@@ -1,8 +1,10 @@
-from typing import Set, Dict, List, Any
+from typing import Set, Dict
 import os
 from abc import ABC, abstractmethod
-from pynvim import Nvim
 import time
+
+from pynvim import Nvim
+
 from magma.utils import MagmaException
 
 
@@ -132,6 +134,8 @@ class UeberzugCanvas(Canvas):
 
 
 class KittyImage:
+    # Adapted from https://sw.kovidgoyal.net/kitty/graphics-protocol/
+
     def __init__(self, id: int, path: str, row: int, col: int, width: int, height: int, nvim: Nvim):
         self.id = id
         self.path = path
@@ -141,7 +145,6 @@ class KittyImage:
         self.height = height
         self.nvim = nvim
 
-# Adapted from https://sw.kovidgoyal.net/kitty/graphics-protocol/
     def serialize_gr_command(self, **cmd):
         payload = cmd.pop('payload', None)
         cmd = ','.join('{}={}'.format(k, v) for k, v in cmd.items())
@@ -156,7 +159,6 @@ class KittyImage:
         if 'tmux' in os.environ['TERM']:
             ans = b'\033Ptmux;' + ans.replace(b'\033', b'\033\033') + b'\033\\'
         return ans
-
 
     def write_chunked(self, **cmd):
         from base64 import standard_b64encode
@@ -173,7 +175,6 @@ class KittyImage:
                 )
             )
             cmd.clear()
-
 
     def show(self):
         with open(self.path, 'rb') as f:
@@ -262,7 +263,6 @@ class Kitty(Canvas):
         self.visible.update(self.to_make_visible)
         self.to_make_invisible.clear()
         self.to_make_visible.clear()
-
 
     def clear(self):
         for identifier in self.visible:
