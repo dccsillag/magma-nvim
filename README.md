@@ -252,6 +252,15 @@ If this is true, then before any non-iostream output chunk, Magma shows the mime
 
 This is meant for debugging and adding new mimetypes.
 
+## Autocommands
+
+We provide some `User` autocommands (see `:help User`) for further customization. They are:
+
+- `MagmaInitPre`: runs right before `MagmaInit` initialization happens for a buffer
+- `MagmaInitPost`: runs right after `MagmaInit` initialization happens for a buffer
+- `MagmaDeinitPre`: runs right before `MagmaDeinit` deinitialization happens for a buffer
+- `MagmaDeinitPost`: runs right after `MagmaDeinit` deinitialization happens for a buffer
+
 ## Extras
 
 ### Output Chunks
