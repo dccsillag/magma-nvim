@@ -3,9 +3,11 @@ from enum import Enum
 from abc import ABC, abstractmethod
 from math import floor
 import re
+import textwrap
 
-from magma.images import Canvas
-from magma.utils import get_pty
+from magma.images  import Canvas
+from magma.options import MagmaOptions
+from magma.utils   import get_pty
 
 
 class OutputChunk(ABC):
@@ -13,7 +15,7 @@ class OutputChunk(ABC):
     jupyter_metadata: Optional[dict] = None
 
     @abstractmethod
-    def place(self, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
+    def place(self, options: MagmaOptions, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
         pass
 
 
@@ -32,8 +34,12 @@ class TextOutputChunk(OutputChunk):
         text = text.replace("\r\n", "\n")
         return text
 
-    def place(self, *_) -> str:
-        return self._cleanup_text(self.text)
+    def place(self, options: MagmaOptions, _, shape: Tuple[int, int, int, int], __) -> str:
+        text = self._cleanup_text(self.text)
+        if options.wrap_output:
+            win_width = shape[2]
+            text = "\n".join("\n".join(textwrap.wrap(line, width=win_width)) for line in text.split("\n"))
+        return text
 
 
 class TextLnOutputChunk(TextOutputChunk):
@@ -86,7 +92,7 @@ class ImageOutputChunk(OutputChunk):
 
             return max(1, xpixels//cols), max(1, ypixels//rows)
 
-    def place(self, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
+    def place(self, _: MagmaOptions, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
         x, y, w, h = shape
 
         xpixels, ypixels = self._get_char_pixelsize()

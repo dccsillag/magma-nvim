@@ -164,7 +164,7 @@ class MagmaBuffer:
         shape = (win_col, win_row, win_width, win_height)
         if len(output.chunks) > 0:
             for chunk in output.chunks:
-                chunktext = chunk.place(lineno, shape, self.canvas)
+                chunktext = chunk.place(self.options, lineno, shape, self.canvas)
                 lines += chunktext
                 lineno += chunktext.count("\n")
             lines = lines.rstrip().split("\n")
@@ -182,12 +182,13 @@ class MagmaBuffer:
                     'col': 0,
                     'row': win_row,
                     'width': win_width,
-                    'height': min(win_height - win_row, len(lines)+1),
+                    'height': min(win_height - win_row, lineno+1),
                     'anchor': 'NW',
                     'style': 'minimal',
                     'focusable': False,
                 }
             )
+            # self.nvim.funcs.nvim_win_set_option(self.display_window, "wrap", True)
 
     def _get_cursor_position(self) -> Position:
         _, lineno, colno, _, _ = self.nvim.funcs.getcurpos()
