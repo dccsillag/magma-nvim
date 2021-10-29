@@ -286,7 +286,3 @@ This already provides quite a bit of basic functionality. As development continu
 ### Notifications
 
 We use the `vim.notify` API. This means that you can use plugins such as [rcarriga/nvim-notify](https://github.com/rcarriga/nvim-notify) for pretty notifications.
-
-## License
-
-This code is licensed under the GPLv3 (due to Ueberzug using it).
