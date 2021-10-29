@@ -230,6 +230,12 @@ If this is true, then whenever you have an active cell its output window will be
 
 If this is false, then the output window will only be automatically shown when you've just evaluated the code. So, if you take your cursor out of the cell, and then come back, the output window won't be opened (but the cell will be highlighted). This means that there will be nothing covering your code. You can then open the output window at will using [`:MagmaShowOutput`](#magma-show-output).
 
+### `g:magma_wrap_output`
+
+Defaults to `v:true`.
+
+If this is true, then text output in the output window will be wrapped (akin to `set wrap`).
+
 ### `g:magma_cell_highlight_group`
 
 Defaults to `"CursorLine"`.
