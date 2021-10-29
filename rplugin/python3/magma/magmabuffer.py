@@ -48,6 +48,8 @@ class MagmaBuffer:
         self.extmark_namespace = extmark_namespace
         self.buffer = buffer
 
+        self._doautocmd('MagmaInitPre')
+
         self.runtime = JupyterRuntime(kernel_name, options)
 
         self.outputs = {}
@@ -62,8 +64,16 @@ class MagmaBuffer:
 
         self.options = options
 
+        self._doautocmd('MagmaInitPost')
+
+    def _doautocmd(self, autocmd: str) -> None:
+        assert ' ' not in autocmd
+        self.nvim.command(f"doautocmd User {autocmd}")
+
     def deinit(self):
+        self._doautocmd('MagmaDeinitPre')
         self.runtime.deinit()
+        self._doautocmd('MagmaDeinitPost')
 
     def _buffer_to_window_lineno(self, lineno: int) -> int:
         win_top = self.nvim.funcs.line('w0')
