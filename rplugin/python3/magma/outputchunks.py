@@ -5,6 +5,7 @@ from math import floor
 import re
 
 from magma.images import Canvas
+from magma.utils import get_pty
 
 
 class OutputChunk(ABC):
@@ -76,14 +77,8 @@ class ImageOutputChunk(OutputChunk):
         import termios
         import fcntl
         import struct
-        import os
 
-        # FIXME: This is not really in Ueberzug's public API.
-        #        We should move this function into this codebase.
-        from ueberzug.process import get_pty_slave
-
-        pty = get_pty_slave(os.getppid())
-        assert pty is not None
+        pty = get_pty()
         with open(pty) as fd_pty:
             farg = struct.pack("HHHH", 0, 0, 0, 0)
             fretint = fcntl.ioctl(fd_pty, termios.TIOCGWINSZ, farg)
