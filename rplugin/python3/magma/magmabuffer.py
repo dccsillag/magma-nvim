@@ -200,6 +200,10 @@ class MagmaBuffer:
             )
             # self.nvim.funcs.nvim_win_set_option(self.display_window, "wrap", True)
 
+    def enter_output(self):
+        if self.display_window is not None:
+            self.nvim.funcs.nvim_set_current_win(self.display_window)
+
     def _get_cursor_position(self) -> Position:
         _, lineno, colno, _, _ = self.nvim.funcs.getcurpos()
         return Position(self.nvim.current.buffer.number, lineno-1, colno-1)

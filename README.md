@@ -227,6 +227,16 @@ Like `MagmaSave`, It has two forms; first, receiving a parameter, specifying whe
 
 If that parameter is omitted, then one will be automatically generated using the `g:magma_save_path` option.
 
+#### MagmaEnterOutput
+
+Enter the output window, if it is currently open. You must call this as follows:
+
+```vim
+:noautocmd MagmaEnterOutput
+```
+
+This is escpecially useful when you have a long output (or errors) and wish to inspect it.
+
 ## Keybindings
 
 It is recommended to map all the evaluate commands to the same mapping (in different modes). For example, if we wanted to bind evaluation to `<LocalLeader>r`:
@@ -245,6 +255,7 @@ You can, of course, also map other commands:
 ```vim
 nnoremap <silent> <LocalLeader>rd :MagmaDelete<CR>
 nnoremap <silent> <LocalLeader>ro :MagmaShowOutput<CR>
+nnoremap <silent> <LocalLeader>rq :noautocmd MagmaEnterOutput<CR>
 ```
 
 ## Customization
