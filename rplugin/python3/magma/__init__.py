@@ -217,13 +217,13 @@ class Magma:
 
         magma.interrupt()
 
-    @pynvim.command("MagmaRestart", nargs=0, sync=True)
+    @pynvim.command("MagmaRestart", nargs=0, sync=True, bang=True)
     @nvimui
-    def command_restart(self) -> None:
+    def command_restart(self, bang: bool) -> None:
         magma = self._get_magma(True)
         assert magma is not None
 
-        magma.restart()
+        magma.restart(delete_outputs=bang)
 
     @pynvim.command("MagmaDelete", nargs=0, sync=True)
     @nvimui

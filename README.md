@@ -185,10 +185,18 @@ Example usage:
 
 Shuts down and restarts the current kernel.
 
+Optionally deletes all output if used with a bang.
+
 Example usage:
 
 ```vim
 :MagmaRestart
+```
+
+Example usage (also deleting outputs):
+
+```vim
+:MagmaRestart!
 ```
 
 #### MagmaSave

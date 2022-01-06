@@ -78,8 +78,10 @@ class MagmaBuffer:
     def interrupt(self) -> None:
         self.runtime.interrupt()
 
-    def restart(self) -> None:
+    def restart(self, delete_outputs: bool=False) -> None:
         self.runtime.restart()
+        if delete_outputs:
+            self.outputs = {}
 
     def _buffer_to_window_lineno(self, lineno: int) -> int:
         win_top = self.nvim.funcs.line('w0')
