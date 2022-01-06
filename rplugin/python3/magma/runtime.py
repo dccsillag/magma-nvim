@@ -52,6 +52,13 @@ class JupyterRuntime:
 
         self.kernel_client.shutdown()
 
+    def interrupt(self):
+        self.kernel_manager.interrupt_kernel()
+
+    def restart(self):
+        self.state = RuntimeState.STARTING
+        self.kernel_manager.restart_kernel()
+
     def run_code(self, code: str) -> Output:
         self.kernel_client.execute(code)
 

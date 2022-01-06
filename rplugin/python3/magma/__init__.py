@@ -209,6 +209,22 @@ class Magma:
 
         magma.reevaluate_cell()
 
+    @pynvim.command("MagmaInterrupt", nargs=0, sync=True)
+    @nvimui
+    def command_interrupt(self) -> None:
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        magma.interrupt()
+
+    @pynvim.command("MagmaRestart", nargs=0, sync=True, bang=True)
+    @nvimui
+    def command_restart(self, bang: bool) -> None:
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        magma.restart(delete_outputs=bang)
+
     @pynvim.command("MagmaDelete", nargs=0, sync=True)
     @nvimui
     def command_delete(self) -> None:
