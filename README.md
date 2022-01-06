@@ -170,6 +170,27 @@ Example usage:
 :MagmaShowOutput
 ```
 
+#### MagmaInterrupt
+
+Send a keyboard interrupt to the kernel. Interrupts the currently running cell and does nothing if not
+cell is running.
+
+Example usage:
+
+```vim
+:MagmaInterrupt
+```
+
+#### MagmaRestart
+
+Shuts down and restarts the current kernel.
+
+Example usage:
+
+```vim
+:MagmaRestart
+```
+
 #### MagmaSave
 
 Save the current cells and evaluated outputs into a JSON file, which can then be loaded back with [`:MagmaLoad`](#magmaload).
