@@ -183,7 +183,7 @@ class MagmaBuffer:
 
         # Open output window
         assert self.display_window is None
-        if win_row < win_height:
+        if win_row < win_height - 1:
             self.display_window = self.nvim.funcs.nvim_open_win(
                 self.display_buffer.number,
                 False,
@@ -192,7 +192,7 @@ class MagmaBuffer:
                     'col': 0,
                     'row': win_row,
                     'width': win_width,
-                    'height': min(win_height - win_row, lineno+1),
+                    'height': min(win_height - win_row - 1, lineno+1),
                     'anchor': 'NW',
                     # 'style': 'minimal',
                     'border': 'rounded',
