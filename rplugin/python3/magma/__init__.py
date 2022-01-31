@@ -55,9 +55,9 @@ class Magma:
 
     def _set_autocommands(self) -> None:
         self.nvim.command("augroup magma")
-        self.nvim.command("  autocmd CursorMoved  * call MagmaUpdateInterface()")
-        self.nvim.command("  autocmd CursorMovedI * call MagmaUpdateInterface()")
-        self.nvim.command("  autocmd WinScrolled  * call MagmaUpdateInterface()")
+        self.nvim.command("  autocmd CursorMoved  * call MagmaOnCursorMoved()")
+        self.nvim.command("  autocmd CursorMovedI * call MagmaOnCursorMoved()")
+        self.nvim.command("  autocmd WinScrolled  * call MagmaOnWinScrolled()")
         self.nvim.command("  autocmd BufEnter     * call MagmaUpdateInterface()")
         self.nvim.command("  autocmd BufLeave     * call MagmaClearInterface()")
         self.nvim.command("  autocmd BufUnload    * call MagmaOnBufferUnload()")
@@ -99,6 +99,16 @@ class Magma:
             return
 
         magma.update_interface()
+
+    def _on_cursor_moved(self, scrolled=False) -> None:
+        if not self.initialized:
+            return
+
+        magma = self._get_magma(False)
+        if magma is None:
+            return
+
+        magma.on_cursor_moved(scrolled)
 
     def _ask_for_choice(self, preface: str, options: List[str]) -> str:
         index = self.nvim.funcs.inputlist(
@@ -343,6 +353,16 @@ class Magma:
     @nvimui
     def function_update_interface(self, _) -> None:
         self._update_interface()
+
+    @pynvim.function("MagmaOnCursorMoved", sync=True)
+    @nvimui
+    def function_on_cursor_moved(self, _) -> None:
+        self._on_cursor_moved()
+
+    @pynvim.function("MagmaOnWinScrolled", sync=True)
+    @nvimui
+    def function_on_win_scrolled(self, _) -> None:
+        self._on_cursor_moved(scrolled=True)
 
     @pynvim.function("MagmaOperatorfunc", sync=True)
     @nvimui

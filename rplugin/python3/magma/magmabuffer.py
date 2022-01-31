@@ -264,6 +264,21 @@ class MagmaBuffer:
 
         self.updating_interface = False
 
+    def on_cursor_moved(self, scrolled=False) -> None:
+        selected_cell = self._get_selected_span()
+
+        if self.selected_cell == selected_cell and selected_cell is not None:
+            if selected_cell.end.lineno < self.nvim.funcs.line("w$") and self.should_open_display_window and scrolled:
+                if self.display_window is not None: # and self.nvim.funcs.winbufnr(self.display_window) != -1:
+                    self.nvim.funcs.nvim_win_close(self.display_window, True)
+                    self.canvas.clear()
+                    self.display_window = None
+                self._show_outputs(self.outputs[selected_cell], selected_cell.end)
+                self.canvas.present()
+            return
+
+        self.update_interface()
+
     def _show_selected(self, span: Span) -> None:
         if span.begin.lineno == span.end.lineno:
             self.nvim.funcs.nvim_buf_add_highlight(
