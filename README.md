@@ -276,6 +276,12 @@ Defaults to `v:true`.
 
 If this is true, then text output in the output window will be wrapped (akin to `set wrap`).
 
+### `g:magma_output_window_borders`
+
+Defaults to `v:true`.
+
+If this is true, then the output window will have rounded borders. If it is false, it will have no borders.
+
 ### `g:magma_cell_highlight_group`
 
 Defaults to `"CursorLine"`.

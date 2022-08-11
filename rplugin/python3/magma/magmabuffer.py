@@ -165,6 +165,8 @@ class MagmaBuffer:
         win_row = self._buffer_to_window_lineno(anchor.lineno+1)
         win_width  = self.nvim.current.window.width
         win_height = self.nvim.current.window.height
+        if self.options.output_window_borders:
+            win_height -= 2
 
         # Clear buffer:
         self.nvim.funcs.deletebufline(self.display_buffer.number, 1, '$')
@@ -194,7 +196,8 @@ class MagmaBuffer:
                     'width': win_width,
                     'height': min(win_height - win_row, lineno+1),
                     'anchor': 'NW',
-                    'style': 'minimal',
+                    'style': None if self.options.output_window_borders else 'minimal',
+                    'border': 'rounded' if self.options.output_window_borders else 'none',
                     'focusable': False,
                 }
             )
