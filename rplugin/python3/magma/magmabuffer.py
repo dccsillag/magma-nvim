@@ -9,6 +9,7 @@ from pynvim.api import Buffer
 from magma.options      import MagmaOptions
 from magma.images       import Canvas
 from magma.utils        import MagmaException, Position, Span
+from magma.outputbuffer import OutputBuffer
 from magma.outputchunks import Output, OutputStatus
 from magma.runtime      import JupyterRuntime
 
@@ -22,12 +23,10 @@ class MagmaBuffer:
 
     runtime: JupyterRuntime
 
-    outputs: Dict[Span, Output]
-    current_output: Optional[Output]
-    queued_outputs: 'Queue[Output]'
+    outputs: Dict[Span, OutputBuffer]
+    current_output: Optional[Span]
+    queued_outputs: 'Queue[Span]'
 
-    display_buffer: Buffer
-    display_window: Optional[int]
     selected_cell: Optional[Span]
     should_open_display_window: bool
     updating_interface: bool
@@ -56,8 +55,6 @@ class MagmaBuffer:
         self.current_output = None
         self.queued_outputs = Queue()
 
-        self.display_buffer = self.nvim.buffers[self.nvim.funcs.nvim_create_buf(False, True)]
-        self.display_window = None
         self.selected_cell = None
         self.should_open_display_window = False
         self.updating_interface = False
@@ -85,17 +82,12 @@ class MagmaBuffer:
 
         self.runtime.restart()
 
-    def _buffer_to_window_lineno(self, lineno: int) -> int:
-        win_top = self.nvim.funcs.line('w0')
-        return lineno - win_top + 1
-
     def run_code(self, code: str, span: Span) -> None:
-        new_output = self.runtime.run_code(code)
+        self.runtime.run_code(code)
         if span in self.outputs:
             del self.outputs[span]
-        self.outputs[span] = new_output
-
-        self.queued_outputs.put(new_output)
+        self.outputs[span] = OutputBuffer(self.nvim, self.canvas, self.options)
+        self.queued_outputs.put(span)
 
         self.selected_cell = span
         self.should_open_display_window = True
@@ -115,16 +107,19 @@ class MagmaBuffer:
     def _check_if_done_running(self) -> None:
         # TODO: refactor
         is_idle = self.current_output is None or \
-            (self.current_output is not None and self.current_output.status == OutputStatus.DONE)
+            (self.current_output is not None and self.outputs[self.current_output].output.status == OutputStatus.DONE)
         if is_idle and not self.queued_outputs.empty():
-            output = self.queued_outputs.get_nowait()
-            self.current_output = output
+            key = self.queued_outputs.get_nowait()
+            self.current_output = key
 
     def tick(self):
         self._check_if_done_running()
 
         was_ready = self.runtime.is_ready()
-        did_stuff = self.runtime.tick(self.current_output)
+        if self.current_output is None:
+            did_stuff = self.runtime.tick(None)
+        else:
+            did_stuff = self.runtime.tick(self.outputs[self.current_output].output)
         if did_stuff:
             self.update_interface()
         if not was_ready and self.runtime.is_ready():
@@ -134,78 +129,9 @@ class MagmaBuffer:
                 {'title': "Magma"},
             )
 
-    def _get_header_text(self, output: Output) -> str:
-        if output.execution_count is None:
-            execution_count = '...'
-        else:
-            execution_count = str(output.execution_count)
-
-        if output.status == OutputStatus.HOLD:
-            status = '* On Hold'
-        elif output.status == OutputStatus.DONE:
-            if output.success:
-                status = '✓ Done'
-            else:
-                status = '✗ Failed'
-        elif output.status == OutputStatus.RUNNING:
-            status = '... Running'
-        else:
-            raise ValueError('bad output.status: %s' % output.status)
-
-        if output.old:
-            old = "[OLD] "
-        else:
-            old = ""
-
-        return f"{old}Out[{execution_count}]: {status}"
-
-    def _show_outputs(self, output: Output, anchor: Position):
-        # Get width&height, etc
-        win_col = self.nvim.current.window.col
-        win_row = self._buffer_to_window_lineno(anchor.lineno+1)
-        win_width  = self.nvim.current.window.width
-        win_height = self.nvim.current.window.height
-        if self.options.output_window_borders:
-            win_height -= 2
-
-        # Clear buffer:
-        self.nvim.funcs.deletebufline(self.display_buffer.number, 1, '$')
-        # Add output chunks to buffer
-        lines = ""
-        lineno = 0
-        shape = (win_col, win_row, win_width, win_height)
-        if len(output.chunks) > 0:
-            for chunk in output.chunks:
-                chunktext = chunk.place(self.options, lineno, shape, self.canvas)
-                lines += chunktext
-                lineno += chunktext.count("\n")
-            lines = lines.rstrip().split("\n")
-        self.display_buffer[0] = self._get_header_text(output)
-        self.display_buffer.append(lines)
-
-        # Open output window
-        assert self.display_window is None
-        if win_row < win_height:
-            self.display_window = self.nvim.funcs.nvim_open_win(
-                self.display_buffer.number,
-                False,
-                {
-                    'relative': 'win',
-                    'col': 0,
-                    'row': win_row,
-                    'width': win_width,
-                    'height': min(win_height - win_row, lineno+1),
-                    'anchor': 'NW',
-                    'style': None if self.options.output_window_borders else 'minimal',
-                    'border': 'rounded' if self.options.output_window_borders else 'none',
-                    'focusable': False,
-                }
-            )
-            # self.nvim.funcs.nvim_win_set_option(self.display_window, "wrap", True)
-
     def enter_output(self):
-        if self.display_window is not None:
-            self.nvim.funcs.nvim_set_current_win(self.display_window)
+        if self.selected_cell is not None:
+            self.outputs[self.selected_cell].enter()
 
     def _get_cursor_position(self) -> Position:
         _, lineno, colno, _, _ = self.nvim.funcs.getcurpos()
@@ -221,10 +147,9 @@ class MagmaBuffer:
             0,
             -1,
         )
-        if self.display_window is not None: # and self.nvim.funcs.winbufnr(self.display_window) != -1:
-            self.nvim.funcs.nvim_win_close(self.display_window, True)
-            self.canvas.clear()
-            self.display_window = None
+        if self.selected_cell is not None:  # and self.nvim.funcs.winbufnr(self.display_window) != -1:
+            self.outputs[self.selected_cell].clear_interface()
+        self.canvas.clear()
 
     def _get_selected_span(self) -> Optional[Span]:
         current_position = self._get_cursor_position()
@@ -309,7 +234,7 @@ class MagmaBuffer:
             )
 
         if self.should_open_display_window:
-            self._show_outputs(self.outputs[span], span.end)
+            self.outputs[span].show(span.end)
 
     def _get_content_checksum(self) -> str:
         return hashlib.md5(

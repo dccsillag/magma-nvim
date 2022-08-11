@@ -59,10 +59,8 @@ class JupyterRuntime:
         self.state = RuntimeState.STARTING
         self.kernel_manager.restart_kernel()
 
-    def run_code(self, code: str) -> Output:
+    def run_code(self, code: str):
         self.kernel_client.execute(code)
-
-        return Output(None)
 
     @contextmanager
     def _alloc_file(self, extension, mode):
