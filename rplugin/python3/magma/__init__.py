@@ -171,6 +171,14 @@ class Magma:
 
         magma.run_code(code, span)
 
+    @pynvim.command("MagmaEnterOutput", sync=True)
+    @nvimui
+    def command_enter_output_window(self) -> None:
+        magma = self._get_magma(True)
+        assert magma is not None
+        magma.enter_output()
+
+
     @pynvim.command("MagmaEvaluateVisual", sync=True)
     @nvimui
     def command_evaluate_visual(self) -> None:
