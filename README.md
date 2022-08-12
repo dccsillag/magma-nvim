@@ -11,7 +11,7 @@ Magma is a NeoVim plugin for running code interactively with Jupyter.
 - Required Python packages:
     - [`pynvim`](https://github.com/neovim/pynvim) (for the Remote Plugin API)
     - [`jupyter_client`](https://github.com/jupyter/jupyter_client) (for interacting with Jupyter)
-    - [`ueberzug`](https://github.com/seebye/ueberzug) (for displaying images)
+    - [`ueberzug`](https://github.com/seebye/ueberzug) (for displaying images. Not available on MacOS, but see [#15](https://github.com/dccsillag/magma-nvim/issues/15) for alternatives)
     - [`Pillow`](https://github.com/python-pillow/Pillow) (also for displaying images, should be installed with `ueberzug`)
     - [`cairosvg`](https://cairosvg.org/) (for displaying SVG images)
     - [`pnglatex`](https://pypi.org/project/pnglatex/) (for displaying TeX formulas)
