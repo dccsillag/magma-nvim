@@ -52,6 +52,7 @@ nnoremap <silent>       <LocalLeader>rd :MagmaDelete<CR>
 nnoremap <silent>       <LocalLeader>ro :MagmaShowOutput<CR>
 
 let g:magma_automatically_open_output = v:false
+let g:magma_image_provider = "ueberzug"
 ```
 
 **Note:** Key mappings are not defined by default because of potential conflicts -- the user should decide which keys they want to use (if at all).
@@ -262,6 +263,16 @@ nnoremap <silent> <LocalLeader>rq :noautocmd MagmaEnterOutput<CR>
 
 Customization is done via variables.
 
+### `g:magma_image_provider`
+
+Defaults to `"none"`.
+
+This configures how to display images. The following options are available:
+
+- `"none"` -- don't show images.
+- `"ueberzug"` -- use [Ueberzug](https://github.com/seebye/ueberzug) to display images.
+- `"kitty"` -- use the Kitty protocol to display images.
+
 ### `g:magma_automatically_open_output`
 
 Defaults to `v:true`.
@@ -322,7 +333,7 @@ In the Jupyter protocol, most output-related messages provide a dictionary of mi
 Here is a list of the currently handled mimetypes:
 
 - `text/plain`: Plain text. Shown as text in the output window's buffer.
-- `image/png`: A PNG image. Shown with [Ueberzug](https://github.com/seebye/ueberzug).
+- `image/png`: A PNG image. Shown according to `g:magma_image_provider`.
 - `image/svg+xml`: A SVG image. Rendered into a PNG with [CairoSVG](https://cairosvg.org/) and shown with [Ueberzug](https://github.com/seebye/ueberzug).
 - `application/vnd.plotly.v1+json`: A Plotly figure. Rendered into a PNG with [Plotly](https://plotly.com/python/) + [Kaleido](https://github.com/plotly/Kaleido) and shown with [Ueberzug](https://github.com/seebye/ueberzug).
 - `text/latex`: A LaTeX formula. Rendered into a PNG with [pnglatex](https://pypi.org/project/pnglatex/) and shown with [Ueberzug](https://github.com/seebye/ueberzug).
