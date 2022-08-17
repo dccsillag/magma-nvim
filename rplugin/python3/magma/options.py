@@ -19,4 +19,4 @@ class MagmaOptions:
         self.show_mimetype_debug = nvim.vars.get("magma_show_mimetype_debug", False)
         self.cell_highlight_group = nvim.vars.get("magma_cell_highlight_group", "CursorLine")
         self.save_path = nvim.vars.get("magma_save_cell", os.path.join(nvim.funcs.stdpath("data"), "magma"))
-        self.image_provider = nvim.vars.get("magma_image_provider", "ueberzug")
+        self.image_provider = nvim.vars.get("magma_image_provider", "none")

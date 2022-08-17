@@ -67,6 +67,26 @@ class Canvas(ABC):
         """
 
 
+class NoCanvas(Canvas):
+    def __init__(self):
+        pass
+
+    def init(self) -> None:
+        pass
+
+    def deinit(self) -> None:
+        pass
+
+    def present(self) -> None:
+        pass
+
+    def clear(self) -> None:
+        pass
+
+    def add_image(self, _path: str, _identifier: str, _x: int, _y: int, _width: int, _height: int) -> None:
+        pass
+
+
 class UeberzugCanvas(Canvas):
     ueberzug_canvas: 'ueberzug.Canvas' # type: ignore
 
@@ -287,7 +307,9 @@ class Kitty(Canvas):
 
 
 def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:
-    if name == "ueberzug":
+    if name == "none":
+        return NoCanvas()
+    elif name == "ueberzug":
         return UeberzugCanvas()
     elif name == "kitty":
         return Kitty(nvim)
