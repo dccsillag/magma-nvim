@@ -100,12 +100,15 @@ class Magma:
 
         magma.update_interface()
 
-    def _ask_for_choice(self, preface: str, options: List[str]) -> str:
+    def _ask_for_choice(self, preface: str, options: List[str]) -> Optional[str]:
         index = self.nvim.funcs.inputlist(
             [preface]
             + [f"{i+1}. {option}" for i, option in enumerate(options)]
         )
-        return options[index-1]
+        if index == 0:
+            return None
+        else:
+            return options[index-1]
 
     def _initialize_buffer(self, kernel_name: str) -> MagmaBuffer:
         assert self.canvas is not None
@@ -156,7 +159,8 @@ class Magma:
                     PROMPT,
                     available_kernels,  # type: ignore
                 )
-                self.command_init([kernel_name])
+                if kernel_name is not None:
+                    self.command_init([kernel_name])
 
     def _deinit_buffer(self, magma: MagmaBuffer) -> None:
         magma.deinit()
