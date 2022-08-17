@@ -107,12 +107,6 @@ class Magma:
         )
         return options[index-1]
 
-    def _ask_for_kernel(self) -> str:
-        return self._ask_for_choice(
-            "Select the kernel to launch:",
-            get_available_kernels(), # type: ignore
-        )
-
     def _initialize_buffer(self, kernel_name: str) -> MagmaBuffer:
         assert self.canvas is not None
         magma = MagmaBuffer(
@@ -136,10 +130,33 @@ class Magma:
 
         if args:
             kernel_name = args[0]
+            self._initialize_buffer(kernel_name)
         else:
-            kernel_name = self._ask_for_kernel()
-
-        self._initialize_buffer(kernel_name)
+            PROMPT = "Select the kernel to launch:"
+            available_kernels = get_available_kernels()
+            if self.nvim.exec_lua("return vim.ui.select ~= nil"):
+                self.nvim.exec_lua(
+                    """
+                        vim.ui.select(
+                            {%s},
+                            {prompt = "%s"},
+                            function(choice)
+                                if choice ~= nil then
+                                    vim.cmd("MagmaInit " .. choice)
+                                end
+                            end
+                        )
+                    """ % (
+                        ", ".join(repr(x) for x in available_kernels),
+                        PROMPT,
+                    )
+                )
+            else:
+                kernel_name = self._ask_for_choice(
+                    PROMPT,
+                    available_kernels,  # type: ignore
+                )
+                self.command_init([kernel_name])
 
     def _deinit_buffer(self, magma: MagmaBuffer) -> None:
         magma.deinit()
