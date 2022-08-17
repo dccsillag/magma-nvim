@@ -144,7 +144,6 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
     def _to_image_chunk(path: str) -> OutputChunk:
         import hashlib
         from PIL import Image
-        import ueberzug as _
 
         pil_image = Image.open(path)
         return ImageOutputChunk(
