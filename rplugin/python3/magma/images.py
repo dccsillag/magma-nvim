@@ -83,7 +83,7 @@ class NoCanvas(Canvas):
     def clear(self) -> None:
         pass
 
-    def add_image(self, _path: str, _identifier: str, _x: int, _y: int, _width: int, _height: int) -> None:
+    def add_image(self, path: str, identifier: str, x: int, y: int, width: int, height: int) -> None:
         pass
 
 

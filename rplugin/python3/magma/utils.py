@@ -8,16 +8,6 @@ class MagmaException(Exception):
     pass
 
 
-def get_pty() -> str:
-    # FIXME: This is not really in Ueberzug's public API.
-    #        We should move this function into this codebase.
-    from ueberzug.process import get_pty_slave
-
-    pty = get_pty_slave(os.getppid())
-    assert pty is not None
-    return pty
-
-
 def nvimui(func):
     def inner(self, *args, **kwargs):
         try:

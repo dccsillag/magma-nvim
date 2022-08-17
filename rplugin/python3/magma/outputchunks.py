@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 from math import floor
 import re
 import textwrap
+import os
 
 from magma.images  import Canvas
 from magma.options import MagmaOptions
-from magma.utils   import get_pty
 
 
 class OutputChunk(ABC):
@@ -79,30 +79,52 @@ class ImageOutputChunk(OutputChunk):
         self.img_checksum = img_checksum
         self.img_width, self.img_height = img_shape
 
-    def _get_char_pixelsize(self) -> Tuple[int, int]:
+    def _get_char_pixelsize(self) -> Optional[Tuple[int, int]]:
         import termios
         import fcntl
         import struct
+        # FIXME: This is not really in Ueberzug's public API.
+        #        We should move this function into this codebase.
+        try:
+            from ueberzug.process import get_pty_slave
+        except ImportError:
+            return None
 
-        pty = get_pty()
+        pty = get_pty_slave(os.getppid())
+        assert pty is not None
+
         with open(pty) as fd_pty:
             farg = struct.pack("HHHH", 0, 0, 0, 0)
             fretint = fcntl.ioctl(fd_pty, termios.TIOCGWINSZ, farg)
             rows, cols, xpixels, ypixels = struct.unpack("HHHH", fretint)
 
+            if xpixels == 0 and ypixels == 0:
+                return None
+
             return max(1, xpixels//cols), max(1, ypixels//rows)
+
+    def _determine_n_lines(self, lineno: int, shape: Tuple[int, int, int, int]) -> int:
+        _, y, w, h = shape
+
+        max_nlines = max(0, (h-y)-lineno - 1)
+
+        maybe_pixelsizes = self._get_char_pixelsize()
+        if maybe_pixelsizes is not None:
+            xpixels, ypixels = maybe_pixelsizes
+
+            if ((self.img_width/xpixels)/(self.img_height/ypixels))*max_nlines <= w:
+                nlines = max_nlines
+            else:
+                nlines = floor(((self.img_height/ypixels)/(self.img_width/xpixels))*w)
+            nlines = min(nlines, self.img_height//ypixels)
+        else:
+            nlines = max_nlines // 3
+
+        return nlines
 
     def place(self, _: MagmaOptions, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
         x, y, w, h = shape
-
-        xpixels, ypixels = self._get_char_pixelsize()
-
-        max_nlines = max(0, (h-y)-lineno - 1)
-        if ((self.img_width/xpixels)/(self.img_height/ypixels))*max_nlines <= w:
-            nlines = max_nlines
-        else:
-            nlines = floor(((self.img_height/ypixels)/(self.img_width/xpixels))*w)
-        nlines = min(nlines, self.img_height//ypixels)
+        nlines = self._determine_n_lines(lineno, shape)
 
         canvas.add_image(
             self.img_path,
@@ -112,7 +134,7 @@ class ImageOutputChunk(OutputChunk):
             width=w,
             height=nlines,
         )
-        return "-\n"*nlines
+        return "\n"*nlines
 
 
 class OutputStatus(Enum):
