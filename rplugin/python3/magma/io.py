@@ -6,6 +6,7 @@ from pynvim.api import Buffer
 from magma.utils        import MagmaException, Span, DynamicPosition
 from magma.options      import MagmaOptions
 from magma.outputchunks import OutputStatus, Output, to_outputchunk
+from magma.outputbuffer import OutputBuffer
 from magma.magmabuffer  import MagmaBuffer
 
 
@@ -81,7 +82,7 @@ def load(magmabuffer: MagmaBuffer, data: dict) -> None:
 
         output.old = True
 
-        magmabuffer.outputs[span] = output
+        magmabuffer.outputs[span] = OutputBuffer(magmabuffer.nvim, magmabuffer.canvas, magmabuffer.options)
 
 
 def save(magmabuffer: MagmaBuffer) -> dict:
@@ -95,15 +96,15 @@ def save(magmabuffer: MagmaBuffer) -> dict:
                     "begin": {"lineno": span.begin.lineno, "colno": span.begin.colno},
                     "end": {"lineno": span.end.lineno, "colno": span.end.colno},
                 },
-                "execution_count": output.execution_count,
-                "status": output.status.value,
-                "success": output.success,
+                "execution_count": output.output.execution_count,
+                "status": output.output.status.value,
+                "success": output.output.success,
                 "chunks": [
                     {
                         "data": chunk.jupyter_data,
                         "metadata": chunk.jupyter_metadata,
                     }
-                    for chunk in output.chunks
+                    for chunk in output.output.chunks
                     if chunk.jupyter_data is not None and chunk.jupyter_metadata is not None
                 ],
             }
