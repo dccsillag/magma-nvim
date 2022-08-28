@@ -6,12 +6,12 @@ import pynvim
 from pynvim import Nvim
 from pynvim.api import Buffer
 
-from magma.options      import MagmaOptions
-from magma.images       import Canvas
-from magma.utils        import MagmaException, Position, Span
+from magma.options import MagmaOptions
+from magma.images import Canvas
+from magma.utils import MagmaException, Position, Span
 from magma.outputbuffer import OutputBuffer
 from magma.outputchunks import Output, OutputStatus
-from magma.runtime      import JupyterRuntime
+from magma.runtime import JupyterRuntime
 
 
 class MagmaBuffer:
@@ -25,7 +25,7 @@ class MagmaBuffer:
 
     outputs: Dict[Span, OutputBuffer]
     current_output: Optional[Span]
-    queued_outputs: 'Queue[Span]'
+    queued_outputs: "Queue[Span]"
 
     selected_cell: Optional[Span]
     should_open_display_window: bool
@@ -33,21 +33,23 @@ class MagmaBuffer:
 
     options: MagmaOptions
 
-    def __init__(self,
-                 nvim: Nvim,
-                 canvas: Canvas,
-                 highlight_namespace: int,
-                 extmark_namespace: int,
-                 buffer: Buffer,
-                 options: MagmaOptions,
-                 kernel_name: str):
+    def __init__(
+        self,
+        nvim: Nvim,
+        canvas: Canvas,
+        highlight_namespace: int,
+        extmark_namespace: int,
+        buffer: Buffer,
+        options: MagmaOptions,
+        kernel_name: str,
+    ):
         self.nvim = nvim
         self.canvas = canvas
         self.highlight_namespace = highlight_namespace
         self.extmark_namespace = extmark_namespace
         self.buffer = buffer
 
-        self._doautocmd('MagmaInitPre')
+        self._doautocmd("MagmaInitPre")
 
         self.runtime = JupyterRuntime(kernel_name, options)
 
@@ -61,21 +63,21 @@ class MagmaBuffer:
 
         self.options = options
 
-        self._doautocmd('MagmaInitPost')
+        self._doautocmd("MagmaInitPost")
 
     def _doautocmd(self, autocmd: str) -> None:
-        assert ' ' not in autocmd
+        assert " " not in autocmd
         self.nvim.command(f"doautocmd User {autocmd}")
 
     def deinit(self):
-        self._doautocmd('MagmaDeinitPre')
+        self._doautocmd("MagmaDeinitPre")
         self.runtime.deinit()
-        self._doautocmd('MagmaDeinitPost')
+        self._doautocmd("MagmaDeinitPost")
 
     def interrupt(self) -> None:
         self.runtime.interrupt()
 
-    def restart(self, delete_outputs: bool=False) -> None:
+    def restart(self, delete_outputs: bool = False) -> None:
         if delete_outputs:
             self.outputs = {}
             self.clear_interface()
@@ -106,8 +108,11 @@ class MagmaBuffer:
 
     def _check_if_done_running(self) -> None:
         # TODO: refactor
-        is_idle = self.current_output is None or \
-            (self.current_output is not None and self.outputs[self.current_output].output.status == OutputStatus.DONE)
+        is_idle = self.current_output is None or (
+            self.current_output is not None
+            and self.outputs[self.current_output].output.status
+            == OutputStatus.DONE
+        )
         if is_idle and not self.queued_outputs.empty():
             key = self.queued_outputs.get_nowait()
             self.current_output = key
@@ -119,14 +124,16 @@ class MagmaBuffer:
         if self.current_output is None:
             did_stuff = self.runtime.tick(None)
         else:
-            did_stuff = self.runtime.tick(self.outputs[self.current_output].output)
+            did_stuff = self.runtime.tick(
+                self.outputs[self.current_output].output
+            )
         if did_stuff:
             self.update_interface()
         if not was_ready and self.runtime.is_ready():
             self.nvim.api.notify(
                 "Kernel '%s' is ready." % self.runtime.kernel_name,
                 pynvim.logging.INFO,
-                {'title': "Magma"},
+                {"title": "Magma"},
             )
 
     def enter_output(self):
@@ -135,7 +142,7 @@ class MagmaBuffer:
 
     def _get_cursor_position(self) -> Position:
         _, lineno, colno, _, _ = self.nvim.funcs.getcurpos()
-        return Position(self.nvim.current.buffer.number, lineno-1, colno-1)
+        return Position(self.nvim.current.buffer.number, lineno - 1, colno - 1)
 
     def clear_interface(self) -> None:
         if self.updating_interface:
@@ -147,7 +154,8 @@ class MagmaBuffer:
             0,
             -1,
         )
-        if self.selected_cell is not None:  # and self.nvim.funcs.winbufnr(self.display_window) != -1:
+        # and self.nvim.funcs.winbufnr(self.display_window) != -1:
+        if self.selected_cell is not None:
             self.outputs[self.selected_cell].clear_interface()
         self.canvas.clear()
 
@@ -215,7 +223,7 @@ class MagmaBuffer:
                 span.begin.colno,
                 -1,
             )
-            for lineno in range(span.begin.lineno+1, span.end.lineno):
+            for lineno in range(span.begin.lineno + 1, span.end.lineno):
                 self.nvim.funcs.nvim_buf_add_highlight(
                     self.buffer.number,
                     self.highlight_namespace,
@@ -238,6 +246,7 @@ class MagmaBuffer:
 
     def _get_content_checksum(self) -> str:
         return hashlib.md5(
-            "\n".join(self.nvim.current.buffer.api.get_lines(0, -1, True))
-            .encode("utf-8")
+            "\n".join(
+                self.nvim.current.buffer.api.get_lines(0, -1, True)
+            ).encode("utf-8")
         ).hexdigest()

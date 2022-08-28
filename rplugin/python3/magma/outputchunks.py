@@ -6,7 +6,7 @@ import re
 import textwrap
 import os
 
-from magma.images  import Canvas
+from magma.images import Canvas
 from magma.options import MagmaOptions
 
 
@@ -15,7 +15,13 @@ class OutputChunk(ABC):
     jupyter_metadata: Optional[dict] = None
 
     @abstractmethod
-    def place(self, options: MagmaOptions, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
+    def place(
+        self,
+        options: MagmaOptions,
+        lineno: int,
+        shape: Tuple[int, int, int, int],
+        canvas: Canvas,
+    ) -> str:
         pass
 
 
@@ -23,22 +29,27 @@ class TextOutputChunk(OutputChunk):
     text: str
 
     # Adapted from [https://stackoverflow.com/a/14693789/4803382]:
-    ANSI_CODE_REGEX = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    ANSI_CODE_REGEX = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
     def __init__(self, text: str):
         self.text = text
 
     def _cleanup_text(self, text: str) -> str:
         # Adapted from [https://stackoverflow.com/a/14693789/4803382]:
-        text = self.ANSI_CODE_REGEX.sub('', text)
+        text = self.ANSI_CODE_REGEX.sub("", text)
         text = text.replace("\r\n", "\n")
         return text
 
-    def place(self, options: MagmaOptions, _, shape: Tuple[int, int, int, int], __) -> str:
+    def place(
+        self, options: MagmaOptions, _, shape: Tuple[int, int, int, int], __
+    ) -> str:
         text = self._cleanup_text(self.text)
         if options.wrap_output:
             win_width = shape[2]
-            text = "\n".join("\n".join(textwrap.wrap(line, width=win_width)) for line in text.split("\n"))
+            text = "\n".join(
+                "\n".join(textwrap.wrap(line, width=win_width))
+                for line in text.split("\n")
+            )
         return text
 
 
@@ -49,7 +60,9 @@ class TextLnOutputChunk(TextOutputChunk):
 
 class BadOutputChunk(TextLnOutputChunk):
     def __init__(self, mimetypes: List[str]):
-        super().__init__("<No usable MIMEtype! Received mimetypes %r>" % mimetypes)
+        super().__init__(
+            "<No usable MIMEtype! Received mimetypes %r>" % mimetypes
+        )
 
 
 class MimetypesOutputChunk(TextLnOutputChunk):
@@ -59,13 +72,15 @@ class MimetypesOutputChunk(TextLnOutputChunk):
 
 class ErrorOutputChunk(TextLnOutputChunk):
     def __init__(self, name: str, message: str, traceback: List[str]):
-        super().__init__("\n".join(
-            [
-                f"[Error] {name}: {message}",
-                f"Traceback:",
-            ]
+        super().__init__(
+            "\n".join(
+                [
+                    f"[Error] {name}: {message}",
+                    "Traceback:",
+                ]
                 + traceback
-        ))
+            )
+        )
 
 
 class AbortedOutputChunk(TextLnOutputChunk):
@@ -74,7 +89,9 @@ class AbortedOutputChunk(TextLnOutputChunk):
 
 
 class ImageOutputChunk(OutputChunk):
-    def __init__(self, img_path: str, img_checksum: str, img_shape: Tuple[int, int]):
+    def __init__(
+        self, img_path: str, img_checksum: str, img_shape: Tuple[int, int]
+    ):
         self.img_path = img_path
         self.img_checksum = img_checksum
         self.img_width, self.img_height = img_shape
@@ -83,6 +100,7 @@ class ImageOutputChunk(OutputChunk):
         import termios
         import fcntl
         import struct
+
         # FIXME: This is not really in Ueberzug's public API.
         #        We should move this function into this codebase.
         try:
@@ -101,28 +119,41 @@ class ImageOutputChunk(OutputChunk):
             if xpixels == 0 and ypixels == 0:
                 return None
 
-            return max(1, xpixels//cols), max(1, ypixels//rows)
+            return max(1, xpixels // cols), max(1, ypixels // rows)
 
-    def _determine_n_lines(self, lineno: int, shape: Tuple[int, int, int, int]) -> int:
+    def _determine_n_lines(
+        self, lineno: int, shape: Tuple[int, int, int, int]
+    ) -> int:
         _, y, w, h = shape
 
-        max_nlines = max(0, (h-y)-lineno - 1)
+        max_nlines = max(0, (h - y) - lineno - 1)
 
         maybe_pixelsizes = self._get_char_pixelsize()
         if maybe_pixelsizes is not None:
             xpixels, ypixels = maybe_pixelsizes
 
-            if ((self.img_width/xpixels)/(self.img_height/ypixels))*max_nlines <= w:
+            if (
+                (self.img_width / xpixels) / (self.img_height / ypixels)
+            ) * max_nlines <= w:
                 nlines = max_nlines
             else:
-                nlines = floor(((self.img_height/ypixels)/(self.img_width/xpixels))*w)
-            nlines = min(nlines, self.img_height//ypixels)
+                nlines = floor(
+                    ((self.img_height / ypixels) / (self.img_width / xpixels))
+                    * w
+                )
+            nlines = min(nlines, self.img_height // ypixels)
         else:
             nlines = max_nlines // 3
 
         return nlines
 
-    def place(self, _: MagmaOptions, lineno: int, shape: Tuple[int, int, int, int], canvas: Canvas) -> str:
+    def place(
+        self,
+        _: MagmaOptions,
+        lineno: int,
+        shape: Tuple[int, int, int, int],
+        canvas: Canvas,
+    ) -> str:
         x, y, w, h = shape
         nlines = self._determine_n_lines(lineno, shape)
 
@@ -130,16 +161,16 @@ class ImageOutputChunk(OutputChunk):
             self.img_path,
             self.img_checksum,
             x=x,
-            y=y + lineno + 1, # TODO: consider scroll in the display window
+            y=y + lineno + 1,  # TODO: consider scroll in the display window
             width=w,
             height=nlines,
         )
-        return "\n"*nlines
+        return "\n" * nlines
 
 
 class OutputStatus(Enum):
-    HOLD         = 0
-    RUNNING      = 1
+    HOLD = 0
+    RUNNING = 1
     DONE = 2
 
 
@@ -178,14 +209,14 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
     def _from_image_png(imgdata) -> OutputChunk:
         import base64
 
-        with alloc_file('png', 'wb') as (path, file):
+        with alloc_file("png", "wb") as (path, file):
             file.write(base64.b64decode(str(imgdata)))  # type: ignore
         return _to_image_chunk(path)
 
     def _from_image_svgxml(svg) -> OutputChunk:
         import cairosvg
 
-        with alloc_file('png', 'wb') as (path, file):
+        with alloc_file("png", "wb") as (path, file):
             cairosvg.svg2png(svg, write_to=file)
         return _to_image_chunk(path)
 
@@ -193,16 +224,16 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
         from plotly.io import from_json
         import json
 
-        figure = from_json(json.dumps(figure_json)) # type: ignore
+        figure = from_json(json.dumps(figure_json))  # type: ignore
 
-        with alloc_file('png', 'wb') as (path, file):
+        with alloc_file("png", "wb") as (path, file):
             figure.write_image(file, engine="kaleido")
         return _to_image_chunk(path)
 
     def _from_latex(tex) -> OutputChunk:
         from pnglatex import pnglatex
 
-        with alloc_file('png', 'w') as (path, _):
+        with alloc_file("png", "w") as (path, _):
             pass
         pnglatex(tex, path)
         return _to_image_chunk(path)
@@ -211,11 +242,11 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
         return TextLnOutputChunk(text)
 
     OUTPUT_CHUNKS = {
-        'image/png': _from_image_png,
-        'image/svg+xml': _from_image_svgxml,
-        'application/vnd.plotly.v1+json': _from_application_plotly,
-        'text/latex': _from_latex,
-        'text/plain': _from_plaintext,
+        "image/png": _from_image_png,
+        "image/svg+xml": _from_image_svgxml,
+        "application/vnd.plotly.v1+json": _from_application_plotly,
+        "text/latex": _from_latex,
+        "text/plain": _from_plaintext,
     }
 
     chunk = None

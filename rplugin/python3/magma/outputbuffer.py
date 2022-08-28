@@ -3,11 +3,11 @@ from typing import Optional
 from pynvim import Nvim
 from pynvim.api import Buffer
 
-from magma.images       import Canvas
+from magma.images import Canvas
 from magma.outputchunks import Output
-from magma.options      import MagmaOptions
-from magma.utils        import Position
-from magma.runtime      import OutputStatus
+from magma.options import MagmaOptions
+from magma.utils import Position
+from magma.runtime import OutputStatus
 
 
 class OutputBuffer:
@@ -27,33 +27,34 @@ class OutputBuffer:
 
         self.output = Output(None)
 
-        self.display_buffer \
-            = self.nvim.buffers[self.nvim.funcs.nvim_create_buf(False, True)]
+        self.display_buffer = self.nvim.buffers[
+            self.nvim.funcs.nvim_create_buf(False, True)
+        ]
         self.display_window = None
 
         self.options = options
 
     def _buffer_to_window_lineno(self, lineno: int) -> int:
-        win_top = self.nvim.funcs.line('w0')
+        win_top = self.nvim.funcs.line("w0")
         return lineno - win_top + 1
 
     def _get_header_text(self, output: Output) -> str:
         if output.execution_count is None:
-            execution_count = '...'
+            execution_count = "..."
         else:
             execution_count = str(output.execution_count)
 
         if output.status == OutputStatus.HOLD:
-            status = '* On Hold'
+            status = "* On Hold"
         elif output.status == OutputStatus.DONE:
             if output.success:
-                status = '✓ Done'
+                status = "✓ Done"
             else:
-                status = '✗ Failed'
+                status = "✗ Failed"
         elif output.status == OutputStatus.RUNNING:
-            status = '... Running'
+            status = "... Running"
         else:
-            raise ValueError('bad output.status: %s' % output.status)
+            raise ValueError("bad output.status: %s" % output.status)
 
         if output.old:
             old = "[OLD] "
@@ -76,21 +77,23 @@ class OutputBuffer:
 
         # Get width&height, etc
         win_col = self.nvim.current.window.col
-        win_row = self._buffer_to_window_lineno(anchor.lineno+1)
-        win_width  = self.nvim.current.window.width
+        win_row = self._buffer_to_window_lineno(anchor.lineno + 1)
+        win_width = self.nvim.current.window.width
         win_height = self.nvim.current.window.height
         if self.options.output_window_borders:
             win_height -= 2
 
         # Clear buffer:
-        self.nvim.funcs.deletebufline(self.display_buffer.number, 1, '$')
+        self.nvim.funcs.deletebufline(self.display_buffer.number, 1, "$")
         # Add output chunks to buffer
         lines = ""
         lineno = 0
         shape = (win_col, win_row, win_width, win_height)
         if len(self.output.chunks) > 0:
             for chunk in self.output.chunks:
-                chunktext = chunk.place(self.options, lineno, shape, self.canvas)
+                chunktext = chunk.place(
+                    self.options, lineno, shape, self.canvas
+                )
                 lines += chunktext
                 lineno += chunktext.count("\n")
             lines = lines.rstrip().split("\n")
@@ -104,15 +107,19 @@ class OutputBuffer:
                 self.display_buffer.number,
                 False,
                 {
-                    'relative': 'win',
-                    'col': 0,
-                    'row': win_row,
-                    'width': win_width,
-                    'height': min(win_height - win_row, lineno+1),
-                    'anchor': 'NW',
-                    'style': None if self.options.output_window_borders else 'minimal',
-                    'border': 'rounded' if self.options.output_window_borders else 'none',
-                    'focusable': False,
-                }
+                    "relative": "win",
+                    "col": 0,
+                    "row": win_row,
+                    "width": win_width,
+                    "height": min(win_height - win_row, lineno + 1),
+                    "anchor": "NW",
+                    "style": None
+                    if self.options.output_window_borders
+                    else "minimal",
+                    "border": "rounded"
+                    if self.options.output_window_borders
+                    else "none",
+                    "focusable": False,
+                },
             )
             # self.nvim.funcs.nvim_win_set_option(self.display_window, "wrap", True)

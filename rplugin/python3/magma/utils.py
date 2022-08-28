@@ -28,10 +28,10 @@ class Position:
         self.lineno = lineno
         self.colno = colno
 
-    def __lt__(self, other: 'Position') -> bool:
+    def __lt__(self, other: "Position") -> bool:
         return (self.lineno, self.colno) < (other.lineno, other.colno)
 
-    def __le__(self, other: 'Position') -> bool:
+    def __le__(self, other: "Position") -> bool:
         return (self.lineno, self.colno) <= (other.lineno, other.colno)
 
 
@@ -42,18 +42,31 @@ class DynamicPosition(Position):
 
     extmark_id: int
 
-    def __init__(self, nvim: Nvim, extmark_namespace: int, bufno: int, lineno: int, colno: int):
+    def __init__(
+        self,
+        nvim: Nvim,
+        extmark_namespace: int,
+        bufno: int,
+        lineno: int,
+        colno: int,
+    ):
         self.nvim = nvim
         self.extmark_namespace = extmark_namespace
 
         self.bufno = bufno
-        self.extmark_id = self.nvim.funcs.nvim_buf_set_extmark(self.bufno, extmark_namespace, lineno, colno, {})
+        self.extmark_id = self.nvim.funcs.nvim_buf_set_extmark(
+            self.bufno, extmark_namespace, lineno, colno, {}
+        )
 
     def __del__(self):
-        self.nvim.funcs.nvim_buf_del_extmark(self.bufno, self.extmark_namespace, self.extmark_id)
+        self.nvim.funcs.nvim_buf_del_extmark(
+            self.bufno, self.extmark_namespace, self.extmark_id
+        )
 
     def _get_pos(self) -> List[int]:
-        return self.nvim.funcs.nvim_buf_get_extmark_by_id(self.bufno, self.extmark_namespace, self.extmark_id, {})
+        return self.nvim.funcs.nvim_buf_get_extmark_by_id(
+            self.bufno, self.extmark_namespace, self.extmark_id, {}
+        )
 
     @property
     def lineno(self) -> int:
@@ -66,9 +79,13 @@ class DynamicPosition(Position):
 
 class Span:
     begin: Union[Position, DynamicPosition]
-    end:   Union[Position, DynamicPosition]
+    end: Union[Position, DynamicPosition]
 
-    def __init__(self, begin: Union[Position, DynamicPosition], end: Union[Position, DynamicPosition]):
+    def __init__(
+        self,
+        begin: Union[Position, DynamicPosition],
+        end: Union[Position, DynamicPosition],
+    ):
         self.begin = begin
         self.end = end
 
@@ -79,13 +96,15 @@ class Span:
         assert self.begin.bufno == self.end.bufno
         bufno = self.begin.bufno
 
-        lines = nvim.funcs.nvim_buf_get_lines(bufno, self.begin.lineno, self.end.lineno+1, True)
+        lines = nvim.funcs.nvim_buf_get_lines(
+            bufno, self.begin.lineno, self.end.lineno + 1, True
+        )
 
         if len(lines) == 1:
-            return lines[0][self.begin.colno:self.end.colno]
+            return lines[0][self.begin.colno : self.end.colno]
         else:
-            return '\n'.join(
-                [lines[0][self.begin.colno:]] +
-                lines[1:-1] +
-                [lines[-1][:self.end.colno]]
+            return "\n".join(
+                [lines[0][self.begin.colno :]]
+                + lines[1:-1]
+                + [lines[-1][: self.end.colno]]
             )
