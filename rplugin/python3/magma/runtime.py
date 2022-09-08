@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, Tuple, List, Dict, Generator, IO, Any
 from enum import Enum
 from contextlib import contextmanager
 from queue import Empty as EmptyQueueException
@@ -57,25 +57,27 @@ class JupyterRuntime:
     def is_ready(self) -> bool:
         return self.state.value > RuntimeState.STARTING.value
 
-    def deinit(self):
+    def deinit(self) -> None:
         for path in self.allocated_files:
             if os.path.exists(path):
                 os.remove(path)
 
         self.kernel_client.shutdown()
 
-    def interrupt(self):
+    def interrupt(self) -> None:
         self.kernel_manager.interrupt_kernel()
 
-    def restart(self):
+    def restart(self) -> None:
         self.state = RuntimeState.STARTING
         self.kernel_manager.restart_kernel()
 
-    def run_code(self, code: str):
+    def run_code(self, code: str) -> None:
         self.kernel_client.execute(code)
 
     @contextmanager
-    def _alloc_file(self, extension, mode):
+    def _alloc_file(
+        self, extension: str, mode: str
+    ) -> Generator[Tuple[str, IO[bytes]], None, None]:
         with tempfile.NamedTemporaryFile(
             suffix="." + extension, mode=mode, delete=False
         ) as file:
@@ -84,7 +86,7 @@ class JupyterRuntime:
         self.allocated_files.append(path)
 
     def _append_chunk(
-        self, output: Output, data: dict, metadata: dict
+        self, output: Output, data: Dict[str, Any], metadata: Dict[str, Any]
     ) -> None:
         if self.options.show_mimetype_debug:
             output.chunks.append(MimetypesOutputChunk(list(data.keys())))
@@ -92,7 +94,7 @@ class JupyterRuntime:
         output.chunks.append(to_outputchunk(self._alloc_file, data, metadata))
 
     def _tick_one(
-        self, output: Output, message_type: str, content: dict
+        self, output: Output, message_type: str, content: Dict[str, Any]
     ) -> bool:
         if output._should_clear:
             output.chunks.clear()
@@ -197,4 +199,4 @@ class JupyterRuntime:
 
 
 def get_available_kernels() -> List[str]:
-    return list(jupyter_client.kernelspec.find_kernel_specs().keys())  # type: ignore
+    return list(jupyter_client.kernelspec.find_kernel_specs().keys())

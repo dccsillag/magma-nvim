@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List, Any
 import json
 import os
 
@@ -28,7 +28,7 @@ class Magma:
 
     options: MagmaOptions
 
-    def __init__(self, nvim):
+    def __init__(self, nvim: Nvim):
         self.nvim = nvim
         self.initialized = False
 
@@ -55,7 +55,7 @@ class Magma:
 
         self.timer = self.nvim.eval(
             "timer_start(500, 'MagmaTick', {'repeat': -1})"
-        )  # type: ignore
+        )
 
         self._set_autocommands()
 
@@ -111,6 +111,7 @@ class Magma:
 
         for magma in self.buffers.values():
             magma.clear_interface()
+        assert self.canvas is not None
         self.canvas.present()
 
     def _update_interface(self) -> None:
@@ -126,7 +127,7 @@ class Magma:
     def _ask_for_choice(
         self, preface: str, options: List[str]
     ) -> Optional[str]:
-        index = self.nvim.funcs.inputlist(
+        index: int = self.nvim.funcs.inputlist(
             [preface]
             + [f"{i+1}. {option}" for i, option in enumerate(options)]
         )
@@ -151,8 +152,8 @@ class Magma:
 
         return magma
 
-    @pynvim.command("MagmaInit", nargs="?", sync=True)
-    @nvimui
+    @pynvim.command("MagmaInit", nargs="?", sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_init(self, args: List[str]) -> None:
         self._initialize_if_necessary()
 
@@ -192,8 +193,8 @@ class Magma:
         magma.deinit()
         del self.buffers[magma.buffer.number]
 
-    @pynvim.command("MagmaDeinit", nargs=0, sync=True)
-    @nvimui
+    @pynvim.command("MagmaDeinit", nargs=0, sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_deinit(self) -> None:
         self._initialize_if_necessary()
 
@@ -222,15 +223,15 @@ class Magma:
 
         magma.run_code(code, span)
 
-    @pynvim.command("MagmaEnterOutput", sync=True)
-    @nvimui
+    @pynvim.command("MagmaEnterOutput", sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_enter_output_window(self) -> None:
         magma = self._get_magma(True)
         assert magma is not None
         magma.enter_output()
 
-    @pynvim.command("MagmaEvaluateVisual", sync=True)
-    @nvimui
+    @pynvim.command("MagmaEvaluateVisual", sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_evaluate_visual(self) -> None:
         _, lineno_begin, colno_begin, _ = self.nvim.funcs.getpos("'<")
         _, lineno_end, colno_end, _ = self.nvim.funcs.getpos("'>")
@@ -248,16 +249,16 @@ class Magma:
 
         self._do_evaluate(span)
 
-    @pynvim.command("MagmaEvaluateOperator", sync=True)
-    @nvimui
+    @pynvim.command("MagmaEvaluateOperator", sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_evaluate_operator(self) -> None:
         self._initialize_if_necessary()
 
         self.nvim.options["operatorfunc"] = "MagmaOperatorfunc"
         self.nvim.out_write("g@\n")
 
-    @pynvim.command("MagmaEvaluateLine", nargs=0, sync=True)
-    @nvimui
+    @pynvim.command("MagmaEvaluateLine", nargs=0, sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_evaluate_line(self) -> None:
         _, lineno, _, _, _ = self.nvim.funcs.getcurpos()
         lineno -= 1
@@ -266,8 +267,8 @@ class Magma:
 
         self._do_evaluate(span)
 
-    @pynvim.command("MagmaReevaluateCell", nargs=0, sync=True)
-    @nvimui
+    @pynvim.command("MagmaReevaluateCell", nargs=0, sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_evaluate_cell(self) -> None:
         self._initialize_if_necessary()
 
@@ -276,24 +277,24 @@ class Magma:
 
         magma.reevaluate_cell()
 
-    @pynvim.command("MagmaInterrupt", nargs=0, sync=True)
-    @nvimui
+    @pynvim.command("MagmaInterrupt", nargs=0, sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_interrupt(self) -> None:
         magma = self._get_magma(True)
         assert magma is not None
 
         magma.interrupt()
 
-    @pynvim.command("MagmaRestart", nargs=0, sync=True, bang=True)
-    @nvimui
+    @pynvim.command("MagmaRestart", nargs=0, sync=True, bang=True)  # type: ignore # noqa
+    @nvimui  # type: ignore
     def command_restart(self, bang: bool) -> None:
         magma = self._get_magma(True)
         assert magma is not None
 
         magma.restart(delete_outputs=bang)
 
-    @pynvim.command("MagmaDelete", nargs=0, sync=True)
-    @nvimui
+    @pynvim.command("MagmaDelete", nargs=0, sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_delete(self) -> None:
         self._initialize_if_necessary()
 
@@ -302,8 +303,8 @@ class Magma:
 
         magma.delete_cell()
 
-    @pynvim.command("MagmaShowOutput", nargs=0, sync=True)
-    @nvimui
+    @pynvim.command("MagmaShowOutput", nargs=0, sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_show_output(self) -> None:
         self._initialize_if_necessary()
 
@@ -313,8 +314,8 @@ class Magma:
         magma.should_open_display_window = True
         self._update_interface()
 
-    @pynvim.command("MagmaSave", nargs="?", sync=True)
-    @nvimui
+    @pynvim.command("MagmaSave", nargs="?", sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_save(self, args: List[str]) -> None:
         self._initialize_if_necessary()
 
@@ -335,8 +336,8 @@ class Magma:
         with open(path, "w") as file:
             json.dump(save(magma), file)
 
-    @pynvim.command("MagmaLoad", nargs="?", sync=True)
-    @nvimui
+    @pynvim.command("MagmaLoad", nargs="?", sync=True)  # type: ignore
+    @nvimui  # type: ignore
     def command_load(self, args: List[str]) -> None:
         self._initialize_if_necessary()
 
@@ -378,14 +379,14 @@ class Magma:
 
     # Internal functions which are exposed to VimScript
 
-    @pynvim.function("MagmaClearInterface", sync=True)
-    @nvimui
-    def function_clear_interface(self, _) -> None:
+    @pynvim.function("MagmaClearInterface", sync=True)  # type: ignore
+    @nvimui  # type: ignore
+    def function_clear_interface(self, _: Any) -> None:
         self._clear_interface()
 
-    @pynvim.function("MagmaOnBufferUnload", sync=True)
-    @nvimui
-    def function_on_buffer_unload(self, _) -> None:
+    @pynvim.function("MagmaOnBufferUnload", sync=True)  # type: ignore
+    @nvimui  # type: ignore
+    def function_on_buffer_unload(self, _: Any) -> None:
         abuf_str = self.nvim.funcs.expand("<abuf>")
         if not abuf_str:
             return
@@ -396,14 +397,14 @@ class Magma:
 
         self._deinit_buffer(magma)
 
-    @pynvim.function("MagmaOnExitPre", sync=True)
-    @nvimui
-    def function_on_exit_pre(self, _) -> None:
+    @pynvim.function("MagmaOnExitPre", sync=True)  # type: ignore
+    @nvimui  # type: ignore
+    def function_on_exit_pre(self, _: Any) -> None:
         self._deinitialize()
 
-    @pynvim.function("MagmaTick", sync=True)
-    @nvimui
-    def function_magma_tick(self, _) -> None:
+    @pynvim.function("MagmaTick", sync=True)  # type: ignore
+    @nvimui  # type: ignore
+    def function_magma_tick(self, _: Any) -> None:
         self._initialize_if_necessary()
 
         magma = self._get_magma(False)
@@ -412,14 +413,14 @@ class Magma:
 
         magma.tick()
 
-    @pynvim.function("MagmaUpdateInterface", sync=True)
-    @nvimui
-    def function_update_interface(self, _) -> None:
+    @pynvim.function("MagmaUpdateInterface", sync=True)  # type: ignore
+    @nvimui  # type: ignore
+    def function_update_interface(self, _: Any) -> None:
         self._update_interface()
 
-    @pynvim.function("MagmaOperatorfunc", sync=True)
-    @nvimui
-    def function_magma_operatorfunc(self, args) -> None:
+    @pynvim.function("MagmaOperatorfunc", sync=True)  # type: ignore
+    @nvimui  # type: ignore
+    def function_magma_operatorfunc(self, args: List[str]) -> None:
         if not args:
             return
 

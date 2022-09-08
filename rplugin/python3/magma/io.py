@@ -1,4 +1,4 @@
-from typing import Type, Optional
+from typing import Type, Optional, Dict, Any
 import os
 
 from pynvim.api import Buffer
@@ -13,8 +13,8 @@ from magma.magmabuffer import MagmaBuffer
 class MagmaIOError(Exception):
     @classmethod
     def assert_has_key(
-        cls, data: dict, key: str, type_: Optional[Type] = None
-    ) -> None:
+        cls, data: Dict[str, Any], key: str, type_: Optional[Type[Any]] = None
+    ) -> Any:
         if key not in data:
             raise cls(f"Missing key: {key}")
         value = data[key]
@@ -36,7 +36,7 @@ def get_default_save_file(options: MagmaOptions, buffer: Buffer) -> str:
     return os.path.join(options.save_path, mangled_name + ".json")
 
 
-def load(magmabuffer: MagmaBuffer, data: dict) -> None:
+def load(magmabuffer: MagmaBuffer, data: Dict[str, Any]) -> None:
     MagmaIOError.assert_has_key(data, "content_checksum", str)
 
     if magmabuffer._get_content_checksum() != data["content_checksum"]:
@@ -97,7 +97,7 @@ def load(magmabuffer: MagmaBuffer, data: dict) -> None:
         )
 
 
-def save(magmabuffer: MagmaBuffer) -> dict:
+def save(magmabuffer: MagmaBuffer) -> Dict[str, Any]:
     return {
         "version": 1,
         "kernel": magmabuffer.runtime.kernel_name,

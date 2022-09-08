@@ -4,10 +4,9 @@ from pynvim import Nvim
 from pynvim.api import Buffer
 
 from magma.images import Canvas
-from magma.outputchunks import Output
+from magma.outputchunks import Output, OutputStatus
 from magma.options import MagmaOptions
 from magma.utils import Position
-from magma.runtime import OutputStatus
 
 
 class OutputBuffer:
@@ -36,6 +35,7 @@ class OutputBuffer:
 
     def _buffer_to_window_lineno(self, lineno: int) -> int:
         win_top = self.nvim.funcs.line("w0")
+        assert isinstance(win_top, int)
         return lineno - win_top + 1
 
     def _get_header_text(self, output: Output) -> str:
@@ -86,7 +86,7 @@ class OutputBuffer:
         # Clear buffer:
         self.nvim.funcs.deletebufline(self.display_buffer.number, 1, "$")
         # Add output chunks to buffer
-        lines = ""
+        lines_str = ""
         lineno = 0
         shape = (win_col, win_row, win_width, win_height)
         if len(self.output.chunks) > 0:
@@ -94,9 +94,11 @@ class OutputBuffer:
                 chunktext = chunk.place(
                     self.options, lineno, shape, self.canvas
                 )
-                lines += chunktext
+                lines_str += chunktext
                 lineno += chunktext.count("\n")
-            lines = lines.rstrip().split("\n")
+            lines = lines_str.rstrip().split("\n")
+        else:
+            lines = [lines_str]
         self.display_buffer[0] = self._get_header_text(self.output)  # TODO
         self.display_buffer.append(lines)
 
@@ -122,4 +124,6 @@ class OutputBuffer:
                     "focusable": False,
                 },
             )
-            # self.nvim.funcs.nvim_win_set_option(self.display_window, "wrap", True)
+            # self.nvim.funcs.nvim_win_set_option(
+            #     self.display_window, "wrap", True
+            # )

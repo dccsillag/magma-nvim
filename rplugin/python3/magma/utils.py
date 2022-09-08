@@ -1,5 +1,4 @@
 from typing import Union, List
-import os
 
 from pynvim import Nvim
 
@@ -8,8 +7,8 @@ class MagmaException(Exception):
     pass
 
 
-def nvimui(func):
-    def inner(self, *args, **kwargs):
+def nvimui(func):  # type: ignore
+    def inner(self, *args, **kwargs):  # type: ignore
         try:
             func(self, *args, **kwargs)
         except MagmaException as err:
@@ -58,22 +57,24 @@ class DynamicPosition(Position):
             self.bufno, extmark_namespace, lineno, colno, {}
         )
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.nvim.funcs.nvim_buf_del_extmark(
             self.bufno, self.extmark_namespace, self.extmark_id
         )
 
     def _get_pos(self) -> List[int]:
-        return self.nvim.funcs.nvim_buf_get_extmark_by_id(
+        out = self.nvim.funcs.nvim_buf_get_extmark_by_id(
             self.bufno, self.extmark_namespace, self.extmark_id, {}
         )
+        assert isinstance(out, list) and all(isinstance(x, int) for x in out)
+        return out
 
     @property
-    def lineno(self) -> int:
+    def lineno(self) -> int:  # type: ignore
         return self._get_pos()[0]
 
     @property
-    def colno(self) -> int:
+    def colno(self) -> int:  # type: ignore
         return self._get_pos()[1]
 
 
@@ -96,7 +97,7 @@ class Span:
         assert self.begin.bufno == self.end.bufno
         bufno = self.begin.bufno
 
-        lines = nvim.funcs.nvim_buf_get_lines(
+        lines: List[str] = nvim.funcs.nvim_buf_get_lines(
             bufno, self.begin.lineno, self.end.lineno + 1, True
         )
 

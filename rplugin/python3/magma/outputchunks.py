@@ -1,4 +1,13 @@
-from typing import Optional, Tuple, List
+from typing import (
+    Optional,
+    Tuple,
+    List,
+    Dict,
+    Any,
+    Callable,
+    IO,
+)
+from contextlib import AbstractContextManager
 from enum import Enum
 from abc import ABC, abstractmethod
 from math import floor
@@ -11,8 +20,8 @@ from magma.options import MagmaOptions
 
 
 class OutputChunk(ABC):
-    jupyter_data: Optional[dict] = None
-    jupyter_metadata: Optional[dict] = None
+    jupyter_data: Optional[Dict[str, Any]] = None
+    jupyter_metadata: Optional[Dict[str, Any]] = None
 
     @abstractmethod
     def place(
@@ -41,7 +50,11 @@ class TextOutputChunk(OutputChunk):
         return text
 
     def place(
-        self, options: MagmaOptions, _, shape: Tuple[int, int, int, int], __
+        self,
+        options: MagmaOptions,
+        _: int,
+        shape: Tuple[int, int, int, int],
+        __: Canvas,
     ) -> str:
         text = self._cleanup_text(self.text)
         if options.wrap_output:
@@ -84,7 +97,7 @@ class ErrorOutputChunk(TextLnOutputChunk):
 
 
 class AbortedOutputChunk(TextLnOutputChunk):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("<Kernel aborted with no error message.>")
 
 
@@ -193,7 +206,14 @@ class Output:
         self._should_clear = False
 
 
-def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
+def to_outputchunk(
+    alloc_file: Callable[
+        [str, str],
+        AbstractContextManager[Tuple[str, IO[bytes]]],
+    ],
+    data: Dict[str, Any],
+    metadata: Dict[str, Any],
+) -> OutputChunk:
     def _to_image_chunk(path: str) -> OutputChunk:
         import hashlib
         from PIL import Image
@@ -206,31 +226,31 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
         )
 
     # Output chunk functions:
-    def _from_image_png(imgdata) -> OutputChunk:
+    def _from_image_png(imgdata: bytes) -> OutputChunk:
         import base64
 
         with alloc_file("png", "wb") as (path, file):
-            file.write(base64.b64decode(str(imgdata)))  # type: ignore
+            file.write(base64.b64decode(str(imgdata)))
         return _to_image_chunk(path)
 
-    def _from_image_svgxml(svg) -> OutputChunk:
+    def _from_image_svgxml(svg: str) -> OutputChunk:
         import cairosvg
 
         with alloc_file("png", "wb") as (path, file):
             cairosvg.svg2png(svg, write_to=file)
         return _to_image_chunk(path)
 
-    def _from_application_plotly(figure_json) -> OutputChunk:
+    def _from_application_plotly(figure_json: Any) -> OutputChunk:
         from plotly.io import from_json
         import json
 
-        figure = from_json(json.dumps(figure_json))  # type: ignore
+        figure = from_json(json.dumps(figure_json))
 
         with alloc_file("png", "wb") as (path, file):
             figure.write_image(file, engine="kaleido")
         return _to_image_chunk(path)
 
-    def _from_latex(tex) -> OutputChunk:
+    def _from_latex(tex: str) -> OutputChunk:
         from pnglatex import pnglatex
 
         with alloc_file("png", "w") as (path, _):
@@ -238,7 +258,7 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
         pnglatex(tex, path)
         return _to_image_chunk(path)
 
-    def _from_plaintext(text) -> OutputChunk:
+    def _from_plaintext(text: str) -> OutputChunk:
         return TextLnOutputChunk(text)
 
     OUTPUT_CHUNKS = {
@@ -254,7 +274,7 @@ def to_outputchunk(alloc_file, data: dict, metadata: dict) -> OutputChunk:
         try:
             maybe_data = data.get(mimetype)
             if maybe_data is not None:
-                chunk = process_func(maybe_data)
+                chunk = process_func(maybe_data)  # type: ignore
                 break
         except ImportError:
             continue

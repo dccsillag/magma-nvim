@@ -10,7 +10,7 @@ from magma.options import MagmaOptions
 from magma.images import Canvas
 from magma.utils import MagmaException, Position, Span
 from magma.outputbuffer import OutputBuffer
-from magma.outputchunks import Output, OutputStatus
+from magma.outputchunks import OutputStatus
 from magma.runtime import JupyterRuntime
 
 
@@ -69,7 +69,7 @@ class MagmaBuffer:
         assert " " not in autocmd
         self.nvim.command(f"doautocmd User {autocmd}")
 
-    def deinit(self):
+    def deinit(self) -> None:
         self._doautocmd("MagmaDeinitPre")
         self.runtime.deinit()
         self._doautocmd("MagmaDeinitPost")
@@ -117,7 +117,7 @@ class MagmaBuffer:
             key = self.queued_outputs.get_nowait()
             self.current_output = key
 
-    def tick(self):
+    def tick(self) -> None:
         self._check_if_done_running()
 
         was_ready = self.runtime.is_ready()
@@ -136,7 +136,7 @@ class MagmaBuffer:
                 {"title": "Magma"},
             )
 
-    def enter_output(self):
+    def enter_output(self) -> None:
         if self.selected_cell is not None:
             self.outputs[self.selected_cell].enter()
 

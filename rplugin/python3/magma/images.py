@@ -76,7 +76,7 @@ class Canvas(ABC):
 
 
 class NoCanvas(Canvas):
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def init(self) -> None:
@@ -112,7 +112,7 @@ class UeberzugCanvas(Canvas):
     _to_make_visible: Set[str]
     _to_make_invisible: Set[str]
 
-    def __init__(self):
+    def __init__(self) -> None:
         import ueberzug.lib.v0 as ueberzug
 
         self.ueberzug_canvas = ueberzug.Canvas()
@@ -122,12 +122,12 @@ class UeberzugCanvas(Canvas):
         self._to_make_visible = set()
         self._to_make_invisible = set()
 
-    def init(self):
-        return self.ueberzug_canvas.__enter__()
+    def init(self) -> None:
+        self.ueberzug_canvas.__enter__()
 
-    def deinit(self):
+    def deinit(self) -> None:
         if len(self.identifiers) > 0:
-            return self.ueberzug_canvas.__exit__()
+            self.ueberzug_canvas.__exit__()
 
     def present(self) -> None:
         import ueberzug.lib.v0 as ueberzug
@@ -145,7 +145,7 @@ class UeberzugCanvas(Canvas):
         self._to_make_invisible.clear()
         self._to_make_visible.clear()
 
-    def clear(self):
+    def clear(self) -> None:
         for identifier in self._visible:
             self._to_make_invisible.add(identifier)
         self._visible.clear()
@@ -158,7 +158,7 @@ class UeberzugCanvas(Canvas):
         y: int,
         width: int,
         height: int,
-    ):
+    ) -> None:
         import ueberzug.lib.v0 as ueberzug
 
         if width > 0 and height > 0:
@@ -202,22 +202,22 @@ class KittyImage:
         self.height = height
         self.nvim = nvim
 
-    def serialize_gr_command(self, **cmd):
+    def serialize_gr_command(self, **cmd):  # type: ignore
         payload = cmd.pop("payload", None)
-        cmd = ",".join("{}={}".format(k, v) for k, v in cmd.items())
-        ans = []
+        cmd = ",".join("{}={}".format(k, v) for k, v in cmd.items())  # type: ignore
+        ans = []  # type: ignore
         w = ans.append
-        w(b"\033_G"), w(cmd.encode("ascii"))
+        w(b"\033_G"), w(cmd.encode("ascii"))  # type: ignore
         if payload:
             w(b";")
             w(payload)
         w(b"\033\\")
-        ans = b"".join(ans)
+        ans = b"".join(ans)  # type: ignore
         if "tmux" in os.environ["TERM"]:
-            ans = b"\033Ptmux;" + ans.replace(b"\033", b"\033\033") + b"\033\\"
+            ans = b"\033Ptmux;" + ans.replace(b"\033", b"\033\033") + b"\033\\"  # type: ignore
         return ans
 
-    def write_chunked(self, **cmd):
+    def write_chunked(self, **cmd):  # type: ignore
         from base64 import standard_b64encode
 
         data = standard_b64encode(cmd.pop("data"))
@@ -225,13 +225,13 @@ class KittyImage:
             chunk, data = data[:4096], data[4096:]
             m = 1 if data else 0
             self.nvim.lua.stdout.write(
-                self.serialize_gr_command(payload=chunk, m=m, **cmd)
+                self.serialize_gr_command(payload=chunk, m=m, **cmd)  # type: ignore
             )
             cmd.clear()
 
-    def show(self):
+    def show(self) -> None:
         with open(self.path, "rb") as f:
-            self.write_chunked(
+            self.write_chunked(  # type: ignore
                 a="T",  # transmit directly to the terminal
                 i=self.id,
                 f=100,  # for now, only png
@@ -243,9 +243,9 @@ class KittyImage:
                 data=f.read(),
             )
 
-    def hide(self):
+    def hide(self) -> None:
         self.nvim.lua.stdout.write(
-            self.serialize_gr_command(
+            self.serialize_gr_command(  # type: ignore
                 i=self.id,
                 a="d",  # remove image
                 q=2,
@@ -261,7 +261,7 @@ class Kitty(Canvas):
     visible: Set[str]
     next_id: int
 
-    def __init__(self, nvim):
+    def __init__(self, nvim: Nvim):
         self.nvim = nvim
         self.images = {}
         self.visible = set()
@@ -280,10 +280,10 @@ class Kitty(Canvas):
         """
         )
 
-    def init(self):
+    def init(self) -> None:
         pass
 
-    def deinit(self):
+    def deinit(self) -> None:
         pass
 
     def present(self) -> None:
@@ -294,7 +294,7 @@ class Kitty(Canvas):
         self.to_make_invisible.difference_update(self.to_make_visible)
         for identifier in self.to_make_invisible:
 
-            def hide_fn(image):
+            def hide_fn(image: KittyImage) -> None:
                 image.hide()
                 # we need the sleep here, otherwise the escape codes might
                 # `spill` over into the buffer when doing
@@ -305,7 +305,7 @@ class Kitty(Canvas):
         for identifier in to_work_on:
             image = self.images[identifier]
 
-            def fn(nvim, image):
+            def fn(nvim: Nvim, image: KittyImage) -> None:
                 eventignore_save = nvim.options["eventignore"]
                 nvim.options["eventignore"] = "all"
 
@@ -328,7 +328,7 @@ class Kitty(Canvas):
         self.to_make_invisible.clear()
         self.to_make_visible.clear()
 
-    def clear(self):
+    def clear(self) -> None:
         for identifier in self.visible:
             self.to_make_invisible.add(identifier)
         self.visible.clear()
@@ -341,7 +341,7 @@ class Kitty(Canvas):
         y: int,
         width: int,
         height: int,
-    ):
+    ) -> None:
         if identifier not in self.images:
             self.images[identifier] = KittyImage(
                 id=self.next_id,
