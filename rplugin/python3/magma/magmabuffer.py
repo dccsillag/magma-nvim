@@ -108,8 +108,9 @@ class MagmaBuffer:
 
     def _check_if_done_running(self) -> None:
         # TODO: refactor
-        is_idle = self.current_output is None or (
-            self.current_output is not None
+        is_idle = ( self.current_output is None
+            or not self.current_output in self.outputs
+        ) or ( self.current_output is not None
             and self.outputs[self.current_output].output.status
             == OutputStatus.DONE
         )
@@ -121,7 +122,7 @@ class MagmaBuffer:
         self._check_if_done_running()
 
         was_ready = self.runtime.is_ready()
-        if self.current_output is None:
+        if self.current_output is None or not self.current_output in self.outputs:
             did_stuff = self.runtime.tick(None)
         else:
             did_stuff = self.runtime.tick(
@@ -155,7 +156,7 @@ class MagmaBuffer:
             -1,
         )
         # and self.nvim.funcs.winbufnr(self.display_window) != -1:
-        if self.selected_cell is not None:
+        if self.selected_cell is not None and self.selected_cell in self.outputs:
             self.outputs[self.selected_cell].clear_interface()
         self.canvas.clear()
 
