@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from queue import Empty as EmptyQueueException
 import os
 import tempfile
+import json
 
 import jupyter_client
 
@@ -39,20 +40,38 @@ class JupyterRuntime:
         self.state = RuntimeState.STARTING
         self.kernel_name = kernel_name
 
-        self.kernel_manager = jupyter_client.manager.KernelManager(
-            kernel_name=kernel_name
-        )
-        self.kernel_manager.start_kernel()
-        self.kernel_client = self.kernel_manager.client()
-        assert isinstance(
-            self.kernel_client,
-            jupyter_client.blocking.client.BlockingKernelClient,
-        )
-        self.kernel_client.start_channels()
+        if ".json" not in self.kernel_name:
 
-        self.allocated_files = []
+            self.kernel_manager = jupyter_client.manager.KernelManager(
+                kernel_name=kernel_name
+            )
+            self.kernel_manager.start_kernel()
+            self.kernel_client = self.kernel_manager.client()
+            assert isinstance(
+                self.kernel_client,
+                jupyter_client.blocking.client.BlockingKernelClient,
+            )
+            self.kernel_client.start_channels()
 
-        self.options = options
+            self.allocated_files = []
+
+            self.options = options
+
+        else:
+            kernel_file = kernel_name
+            # Opening JSON file
+            kernel_json = json.load(open(kernel_file))
+            # we have a kernel json
+            self.kernel_manager = jupyter_client.manager.KernelManager(
+                    kernel_name=kernel_json["kernel_name"]
+                    )
+            self.kernel_client = jupyter_client.KernelClient.load_connection_file(connection_file=kernel_file)
+            # connect to it
+            self.kernel_client.start_channels()
+
+            self.allocated_files = []
+
+            self.options = options
 
     def is_ready(self) -> bool:
         return self.state.value > RuntimeState.STARTING.value
