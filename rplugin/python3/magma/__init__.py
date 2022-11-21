@@ -152,14 +152,6 @@ class Magma:
 
         return magma
 
-    @pynvim.command("MagmaConnect", nargs="?", sync=True)  # type: ignore
-    @nvimui  # type: ignore
-    def command_init(self, args: List[str]) -> None:
-        self._initialize_if_necessary()
-        if args:
-            kernel_path = args[0]
-            self._initialize_buffer(kernel_path)
-
     @pynvim.command("MagmaInit", nargs="?", sync=True)  # type: ignore
     @nvimui  # type: ignore
     def command_init(self, args: List[str]) -> None:
@@ -169,7 +161,7 @@ class Magma:
             kernel_name = args[0]
             self._initialize_buffer(kernel_name)
         else:
-            PROMPT = "Select the kernel to launch:"
+            PROMPT = "Select the kernel to launch!:"
             available_kernels = get_available_kernels()
             if self.nvim.exec_lua("return vim.ui.select ~= nil"):
                 self.nvim.exec_lua(

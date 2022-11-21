@@ -42,6 +42,7 @@ class JupyterRuntime:
 
         if ".json" not in self.kernel_name:
 
+            self.external_kernel = True
             self.kernel_manager = jupyter_client.manager.KernelManager(
                 kernel_name=kernel_name
             )
@@ -59,15 +60,18 @@ class JupyterRuntime:
 
         else:
             kernel_file = kernel_name
+            self.external_kernel = True
             # Opening JSON file
             kernel_json = json.load(open(kernel_file))
             # we have a kernel json
             self.kernel_manager = jupyter_client.manager.KernelManager(
                     kernel_name=kernel_json["kernel_name"]
                     )
-            self.kernel_client = jupyter_client.KernelClient.load_connection_file(connection_file=kernel_file)
+            self.kernel_client = self.kernel_manager.client()
+
+            self.kernel_client.load_connection_file(connection_file=kernel_file)
             # connect to it
-            self.kernel_client.start_channels()
+            # self.kernel_client.start_channels()
 
             self.allocated_files = []
 
@@ -127,9 +131,11 @@ class JupyterRuntime:
             elif output.status == OutputStatus.RUNNING:
                 output.status = OutputStatus.DONE
             else:
-                raise ValueError(
-                    "bad value for output.status: %r" % output.status
-                )
+                if self.external_kernel == False:
+                    print("External Kernel: ", self.external_kernel)
+                    raise ValueError(
+                        "bad value for output.status: %r" % output.status
+                    )
             return True
         elif message_type == "status":
             execution_state = content["execution_state"]
