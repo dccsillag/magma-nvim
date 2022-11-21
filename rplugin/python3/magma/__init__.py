@@ -161,7 +161,7 @@ class Magma:
             kernel_name = args[0]
             self._initialize_buffer(kernel_name)
         else:
-            PROMPT = "Select the kernel to launch!:"
+            PROMPT = "Select the kernel to launch:"
             available_kernels = get_available_kernels()
             if self.nvim.exec_lua("return vim.ui.select ~= nil"):
                 self.nvim.exec_lua(
