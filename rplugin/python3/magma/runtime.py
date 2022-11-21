@@ -70,8 +70,6 @@ class JupyterRuntime:
             self.kernel_client = self.kernel_manager.client()
 
             self.kernel_client.load_connection_file(connection_file=kernel_file)
-            # connect to it
-            # self.kernel_client.start_channels()
 
             self.allocated_files = []
 
@@ -126,14 +124,13 @@ class JupyterRuntime:
 
         if message_type == "execute_input":
             output.execution_count = content["execution_count"]
-            assert output.status != OutputStatus.DONE
-            if output.status == OutputStatus.HOLD:
-                output.status = OutputStatus.RUNNING
-            elif output.status == OutputStatus.RUNNING:
-                output.status = OutputStatus.DONE
-            else:
-                if self.external_kernel == False:
-                    print("External Kernel: ", self.external_kernel)
+            if self.external_kernel == False:
+                assert output.status != OutputStatus.DONE
+                if output.status == OutputStatus.HOLD:
+                    output.status = OutputStatus.RUNNING
+                elif output.status == OutputStatus.RUNNING:
+                    output.status = OutputStatus.DONE
+                else:
                     raise ValueError(
                         "bad value for output.status: %r" % output.status
                     )
