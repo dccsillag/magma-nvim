@@ -85,7 +85,8 @@ class JupyterRuntime:
             if os.path.exists(path):
                 os.remove(path)
 
-        self.kernel_client.shutdown()
+        if self.external_kernel is False:
+            self.kernel_client.shutdown()
 
     def interrupt(self) -> None:
         self.kernel_manager.interrupt_kernel()
