@@ -223,12 +223,30 @@ class Magma:
 
         magma.run_code(code, span)
 
+    def _do_evaluate_expr(self, expr):
+        self._initialize_if_necessary()
+
+        magma = self._get_magma(True)
+        assert magma is not None
+        bufno = self.nvim.current.buffer.number
+        span = Span(
+            DynamicPosition(self.nvim, self.extmark_namespace, bufno, 0, 0),
+            DynamicPosition(self.nvim, self.extmark_namespace, bufno, 0, 0),
+        )
+        magma.run_code(expr, span)
+
     @pynvim.command("MagmaEnterOutput", sync=True)  # type: ignore
     @nvimui  # type: ignore
     def command_enter_output_window(self) -> None:
         magma = self._get_magma(True)
         assert magma is not None
         magma.enter_output()
+
+    @pynvim.command("MagmaEvaluateArgument", nargs=1, sync=True)
+    @nvimui
+    def commnand_magma_evaluate_argument(self, expr) -> None:
+        assert len(expr) == 1
+        self._do_evaluate_expr(expr[0])
 
     @pynvim.command("MagmaEvaluateVisual", sync=True)  # type: ignore
     @nvimui  # type: ignore
