@@ -124,7 +124,7 @@ class JupyterRuntime:
 
         if message_type == "execute_input":
             output.execution_count = content["execution_count"]
-            if self.external_kernel == False:
+            if self.external_kernel is False:
                 assert output.status != OutputStatus.DONE
                 if output.status == OutputStatus.HOLD:
                     output.status = OutputStatus.RUNNING
@@ -152,6 +152,9 @@ class JupyterRuntime:
             return False
         elif message_type == "execute_result":
             self._append_chunk(output, content["data"], content["metadata"])
+            if 'text/plain' in content['data']:
+                import pyperclip
+                pyperclip.copy(content["data"]['text/plain'])
             return True
         elif message_type == "error":
             output.chunks.append(
