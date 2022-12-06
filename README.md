@@ -16,6 +16,7 @@ Magma is a NeoVim plugin for running code interactively with Jupyter.
     - [`cairosvg`](https://cairosvg.org/) (for displaying SVG images)
     - [`pnglatex`](https://pypi.org/project/pnglatex/) (for displaying TeX formulas)
     - `plotly` and `kaleido` (for displaying Plotly figures)
+    - `pyperclip` for copying to the clipboard automatically
 - For .NET (C#, F#)
     - `dotnet tool install -g Microsoft.dotnet-interactive`
     - `dotnet interactive jupyter install`

@@ -155,6 +155,9 @@ class JupyterRuntime:
             if 'text/plain' in content['data']:
                 import pyperclip
                 pyperclip.copy(content["data"]['text/plain'])
+            else:
+                import pyperclip
+                pyperclip.copy(str(content["data"].keys()))
             return True
         elif message_type == "error":
             output.chunks.append(
