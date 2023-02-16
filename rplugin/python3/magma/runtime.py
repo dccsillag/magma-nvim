@@ -16,6 +16,7 @@ from magma.outputchunks import (
     TextOutputChunk,
     OutputStatus,
     to_outputchunk,
+    clean_up_text
 )
 
 
@@ -165,6 +166,8 @@ class JupyterRuntime:
                     content["ename"], content["evalue"], content["traceback"]
                 )
             )
+            import pyperclip
+            pyperclip.copy("\n\n".join(map(clean_up_text, content["traceback"])))
             output.success = False
             return True
         elif message_type == "stream":
