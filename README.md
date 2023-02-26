@@ -1,5 +1,7 @@
 # Magma
 
+For autocompletion, see [this plugin](https://github.com/lkhphuc/jupyter-kernel.nvim).
+
 Magma is a NeoVim plugin for running code interactively with Jupyter.
 
 ![](https://user-images.githubusercontent.com/15617291/128964224-f157022c-25cd-4a60-a0da-7d1462564ae4.gif)
