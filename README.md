@@ -34,13 +34,13 @@ Use your favourite package/plugin manager.
 If you use `packer.nvim`,
 
 ```lua
-use { 'dccsillag/magma-nvim', run = ':UpdateRemotePlugins' }
+use { 'WhiteBlackGoose/magma-nvim-goose', run = ':UpdateRemotePlugins' }
 ```
 
 If you use `vim-plug`,
 
 ```vim
-Plug 'dccsillag/magma-nvim', { 'do': ':UpdateRemotePlugins' }
+Plug 'WhiteBlackGoose/magma-nvim-goose', { 'do': ':UpdateRemotePlugins' }
 ```
 
 Note that you will still need to configure keymappings -- see [Keybindings](#keybindings).
