@@ -458,7 +458,7 @@ class Magma:
         if not args:
             return
 
-        self.function_magma_tick()
+        self._initialize_if_necessary()
         magma = self._get_magma(True)
         assert magma is not None
 
