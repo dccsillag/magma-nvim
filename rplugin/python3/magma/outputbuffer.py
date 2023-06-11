@@ -97,6 +97,14 @@ class OutputBuffer:
                 lines_str += chunktext
                 lineno += chunktext.count("\n")
             lines = lines_str.rstrip().split("\n")
+            actualLines = []
+            for line in lines:
+                parts = line.split('\r')
+                last = parts[-1]
+                if last != "":
+                    actualLines.append(last)
+            lines = actualLines
+            lineno = len(lines)
         else:
             lines = [lines_str]
         self.display_buffer[0] = self._get_header_text(self.output)  # TODO

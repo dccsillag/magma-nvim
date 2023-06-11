@@ -16,7 +16,7 @@ class MagmaOptions:
         self.automatically_open_output = nvim.vars.get(
             "magma_automatically_open_output", True
         )
-        self.wrap_output = nvim.vars.get("magma_wrap_output", True)
+        self.wrap_output = nvim.vars.get("magma_wrap_output", False)
         self.output_window_borders = nvim.vars.get(
             "magma_output_window_borders", True
         )
