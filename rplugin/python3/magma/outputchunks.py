@@ -209,7 +209,7 @@ class Output:
 def to_outputchunk(
     alloc_file: Callable[
         [str, str],
-        AbstractContextManager[Tuple[str, IO[bytes]]],
+        "AbstractContextManager[Tuple[str, IO[bytes]]]",
     ],
     data: Dict[str, Any],
     metadata: Dict[str, Any],
