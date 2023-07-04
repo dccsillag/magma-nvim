@@ -152,7 +152,7 @@ class Magma:
 
         return magma
 
-    @pynvim.command("MagmaInit", nargs="?", sync=True)  # type: ignore
+    @pynvim.command("MagmaInit", nargs="?", sync=True, complete='file')  # type: ignore
     @nvimui  # type: ignore
     def command_init(self, args: List[str]) -> None:
         self._initialize_if_necessary()
