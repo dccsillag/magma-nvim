@@ -85,9 +85,13 @@ class MagmaBuffer:
         self.runtime.restart()
 
     def run_code(self, code: str, span: Span) -> None:
+        self._delete_all_cells_in_span(span)
         self.runtime.run_code(code)
+
         if span in self.outputs:
+            self.outputs[span].clear_interface()
             del self.outputs[span]
+
         self.outputs[span] = OutputBuffer(self.nvim, self.canvas, self.options)
         self.queued_outputs.put(span)
 
@@ -170,14 +174,24 @@ class MagmaBuffer:
 
         return selected
 
+    def _delete_all_cells_in_span(self, span: Span) -> None:
+        for output_span in reversed(list(self.outputs.keys())):
+            if (
+                output_span.begin in span
+                or output_span.end in span
+                or span.begin in output_span
+                or span.end in output_span
+            ):
+                self.outputs[output_span].clear_interface()
+                del self.outputs[output_span]
+
     def delete_cell(self) -> None:
         self.selected_cell = self._get_selected_span()
         if self.selected_cell is None:
             return
 
+        self.outputs[self.selected_cell].clear_interface()
         del self.outputs[self.selected_cell]
-
-        self.update_interface()
 
     def update_interface(self) -> None:
         if self.buffer.number != self.nvim.current.buffer.number:
