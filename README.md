@@ -349,6 +349,12 @@ Where to save/load with [`:MagmaSave`](#magmasave) and [`:MagmaLoad`](#magmaload
 
 The generated file is placed in this directory, with the filename itself being the buffer's name, with `%` replaced by `%%` and `/` replaced by `%`, and postfixed with the extension `.json`.
 
+### `g:magma_copy_output`
+
+Defaults to `v:false`.
+
+To copy the evaluation output to clipboard automatically.
+
 ### [DEBUG] `g:magma_show_mimetype_debug`
 
 Defaults to `v:false`.

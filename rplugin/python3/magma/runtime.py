@@ -16,6 +16,7 @@ from magma.outputchunks import (
     TextOutputChunk,
     OutputStatus,
     to_outputchunk,
+    clean_up_text
 )
 
 
@@ -118,13 +119,22 @@ class JupyterRuntime:
     def _tick_one(
         self, output: Output, message_type: str, content: Dict[str, Any]
     ) -> bool:
+
+        def copy_on_demand(content_ctor):
+            if self.options.copy_output:
+                import pyperclip
+                if type(content_ctor) is str:
+                    pyperclip.copy(content_ctor)
+                else:
+                    pyperclip.copy(content_ctor())
+
         if output._should_clear:
             output.chunks.clear()
             output._should_clear = False
 
         if message_type == "execute_input":
             output.execution_count = content["execution_count"]
-            if self.external_kernel == False:
+            if self.external_kernel is False:
                 assert output.status != OutputStatus.DONE
                 if output.status == OutputStatus.HOLD:
                     output.status = OutputStatus.RUNNING
@@ -152,6 +162,8 @@ class JupyterRuntime:
             return False
         elif message_type == "execute_result":
             self._append_chunk(output, content["data"], content["metadata"])
+            if 'text/plain' in content['data']:
+                copy_on_demand(content["data"]['text/plain'])
             return True
         elif message_type == "error":
             output.chunks.append(
@@ -159,9 +171,11 @@ class JupyterRuntime:
                     content["ename"], content["evalue"], content["traceback"]
                 )
             )
+            copy_on_demand(lambda: "\n\n".join(map(clean_up_text, content["traceback"])))
             output.success = False
             return True
         elif message_type == "stream":
+            copy_on_demand(content["text"])
             output.chunks.append(TextOutputChunk(content["text"]))
             return True
         elif message_type == "display_data":
