@@ -1,6 +1,7 @@
 import json
 import uuid
 import re
+import time
 from queue import Empty as EmptyQueueException
 from typing import Any, Dict
 from threading import Thread
@@ -24,8 +25,13 @@ class JupyterAPIClient:
 
         self._recv_queue: Queue[Dict[str, Any]] = Queue()
 
-    def wait_for_ready(self, timeout=0):
-        pass
+    def wait_for_ready(self, **kwargs):
+        while True:
+            response = requests.get(self._kernel_api_base,
+                                    headers=self._headers)
+            response = json.loads(response.text)
+            if response["execution_state"] == "idle":
+                return
 
     def start_channels(self) -> None:
         parsed_url = urlparse(self._base_url)
