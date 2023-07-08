@@ -36,7 +36,7 @@ class JupyterRuntime:
         self.state = RuntimeState.STARTING
         self.kernel_name = kernel_name
 
-        if kernel_name.startswith("http://"):
+        if kernel_name.startswith("http://") or kernel_name.startswith("https://"):
             self.external_kernel = True
             self.kernel_manager = JupyterAPIManager(kernel_name)
             self.kernel_manager.start_kernel()
