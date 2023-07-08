@@ -1,16 +1,16 @@
-from typing import Optional, Tuple, Dict, List, Any
 import json
 import os
+from typing import Any, Dict, List, Optional, Tuple
 
 import pynvim
-from pynvim import Nvim
-
-from magma.options import MagmaOptions
-from magma.utils import MagmaException, nvimui, DynamicPosition, Span
 from magma.images import Canvas, get_canvas_given_provider
-from magma.runtime import get_available_kernels
+from magma.io import MagmaIOError, get_default_save_file, load, save
 from magma.magmabuffer import MagmaBuffer
-from magma.io import MagmaIOError, save, load, get_default_save_file
+from magma.options import MagmaOptions
+from magma.outputbuffer import OutputBuffer
+from magma.runtime import get_available_kernels
+from magma.utils import DynamicPosition, MagmaException, Span, nvimui
+from pynvim import Nvim
 
 
 @pynvim.plugin
@@ -470,3 +470,23 @@ class Magma:
         )
 
         self._do_evaluate(span)
+
+    @pynvim.function("MagmaDefineCell", sync=True)
+    def function_magma_define_cell(self, args: List[int]) -> None:
+        if not args:
+            return
+
+        self._initialize_if_necessary()
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        start = args[0]
+        end = args[1]
+        bufno = self.nvim.current.buffer.number
+        span = Span(
+            DynamicPosition(
+                self.nvim, self.extmark_namespace, bufno, start - 1, 0
+            ),
+            DynamicPosition(self.nvim, self.extmark_namespace, bufno, end - 1, -1),
+        )
+        magma.outputs[span] = OutputBuffer(self.nvim, self.canvas, self.options)
