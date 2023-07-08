@@ -122,7 +122,8 @@ class ImageOutputChunk(OutputChunk):
             return None
 
         pty = get_pty_slave(os.getppid())
-        assert pty is not None
+        if pty is None:
+            return None
 
         with open(pty) as fd_pty:
             farg = struct.pack("HHHH", 0, 0, 0, 0)
