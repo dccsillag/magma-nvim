@@ -63,8 +63,6 @@ class MagmaBuffer:
 
         self.options = options
 
-        self._doautocmd("MagmaInitPost")
-
     def _doautocmd(self, autocmd: str) -> None:
         assert " " not in autocmd
         self.nvim.command(f"doautocmd User {autocmd}")

@@ -149,6 +149,7 @@ class Magma:
         )
 
         self.buffers[self.nvim.current.buffer.number] = magma
+        magma._doautocmd("MagmaInitPost")
 
         return magma
 
