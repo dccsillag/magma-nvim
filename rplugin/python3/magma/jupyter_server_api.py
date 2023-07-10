@@ -30,8 +30,10 @@ class JupyterAPIClient:
             response = requests.get(self._kernel_api_base,
                                     headers=self._headers)
             response = json.loads(response.text)
-            if response["execution_state"] == "idle":
+            if response["execution_state"] in ("idle", "starting"):
                 return
+            time.sleep(0.1)
+
 
     def start_channels(self) -> None:
         parsed_url = urlparse(self._base_url)
