@@ -1,5 +1,4 @@
-from typing import Optional, Tuple, List, Dict, Generator, IO, Any
-from enum import Enum
+from typing import Optional, Tuple, List, Dict, Generator, IO, Any, Union
 from contextlib import contextmanager
 from queue import Empty as EmptyQueueException
 import os
@@ -8,6 +7,7 @@ import json
 
 import jupyter_client
 
+from magma.runtime_state import RuntimeState
 from magma.options import MagmaOptions
 from magma.outputchunks import (
     Output,
@@ -18,20 +18,15 @@ from magma.outputchunks import (
     to_outputchunk,
     clean_up_text
 )
-
-
-class RuntimeState(Enum):
-    STARTING = 0
-    IDLE = 1
-    RUNNING = 2
+from magma.jupyter_server_api import JupyterAPIClient, JupyterAPIManager
 
 
 class JupyterRuntime:
     state: RuntimeState
     kernel_name: str
 
-    kernel_manager: jupyter_client.KernelManager
-    kernel_client: jupyter_client.KernelClient
+    kernel_manager: Union[jupyter_client.KernelManager, JupyterAPIManager]
+    kernel_client: Union[jupyter_client.KernelClient, JupyterAPIClient]
 
     allocated_files: List[str]
 
@@ -41,7 +36,18 @@ class JupyterRuntime:
         self.state = RuntimeState.STARTING
         self.kernel_name = kernel_name
 
-        if ".json" not in self.kernel_name:
+        if kernel_name.startswith("http://") or kernel_name.startswith("https://"):
+            self.external_kernel = True
+            self.kernel_manager = JupyterAPIManager(kernel_name)
+            self.kernel_manager.start_kernel()
+            self.kernel_client = self.kernel_manager.client()
+            self.kernel_client.start_channels()
+
+            self.allocated_files = []
+
+            self.options = options
+
+        elif ".json" not in self.kernel_name:
 
             self.external_kernel = True
             self.kernel_manager = jupyter_client.manager.KernelManager(
@@ -202,8 +208,8 @@ class JupyterRuntime:
         assert isinstance(
             self.kernel_client,
             jupyter_client.blocking.client.BlockingKernelClient,
-        )
-
+        ) or isinstance(
+            self.kernel_client, JupyterAPIClient)
         if not self.is_ready():
             try:
                 self.kernel_client.wait_for_ready(timeout=0)
