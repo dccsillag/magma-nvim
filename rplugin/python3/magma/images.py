@@ -213,7 +213,17 @@ class KittyImage:
             w(payload)
         w(b"\033\\")
         ans = b"".join(ans)  # type: ignore
-        if "tmux" in os.environ["TERM"]:
+        # Mangling the escape codes to make them work inside tmux
+        inside_tmux = (
+            any(os.environ.get("TMUX", ""))
+            or
+            # Only for tmux >= 3.2
+            "tmux" in os.environ.get("TERM_PROGRAM", "")
+            or
+            # Not reliable, TERM can be set to screen-256color, xterm-kitty, etc.
+            "tmux" in os.environ.get("TERM", "")
+        )
+        if inside_tmux:
             ans = b"\033Ptmux;" + ans.replace(b"\033", b"\033\033") + b"\033\\"  # type: ignore
         return ans
 
