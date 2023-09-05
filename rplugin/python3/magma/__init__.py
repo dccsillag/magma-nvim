@@ -28,6 +28,8 @@ class Magma:
 
     options: MagmaOptions
 
+    magma_buffers: Dict[str, MagmaBuffer]
+
     def __init__(self, nvim: Nvim):
         self.nvim = nvim
         self.initialized = False
@@ -35,6 +37,7 @@ class Magma:
         self.canvas = None
         self.buffers = {}
         self.timer = None
+        self.magma_buffers = {}
 
     def _initialize(self) -> None:
         assert not self.initialized
@@ -136,8 +139,16 @@ class Magma:
         else:
             return options[index - 1]
 
-    def _initialize_buffer(self, kernel_name: str) -> MagmaBuffer:
+    def _initialize_buffer(self, kernel_name: str, shared: bool) -> MagmaBuffer:
         assert self.canvas is not None
+        if shared:
+            magma = self.magma_buffers.get(kernel_name)
+            if magma is not None:
+                magma.add_nvim_buffer(self.nvim.current.buffer)
+                self.buffers[self.nvim.current.buffer.number] = magma
+
+                return magma
+
         magma = MagmaBuffer(
             self.nvim,
             self.canvas,
@@ -148,18 +159,26 @@ class Magma:
             kernel_name,
         )
 
+        # Can only share one instance of a kernel
+        self.magma_buffers[kernel_name] = magma
         self.buffers[self.nvim.current.buffer.number] = magma
 
         return magma
 
-    @pynvim.command("MagmaInit", nargs="?", sync=True, complete='file')  # type: ignore
+    @pynvim.command("MagmaInit", nargs="*", sync=True, complete='file')  # type: ignore
     @nvimui  # type: ignore
     def command_init(self, args: List[str]) -> None:
         self._initialize_if_necessary()
 
         if args:
+            args = args[0].split(" ")
             kernel_name = args[0]
-            self._initialize_buffer(kernel_name)
+            shared = False
+            if len(args) > 1:
+                shared = True
+            print(args)
+
+            self._initialize_buffer(kernel_name, shared)
         else:
             PROMPT = "Select the kernel to launch:"
             available_kernels = get_available_kernels()
@@ -384,7 +403,7 @@ class Magma:
             MagmaIOError.assert_has_key(data, "kernel", str)
             kernel_name = data["kernel"]
 
-            magma = self._initialize_buffer(kernel_name)
+            magma = self._initialize_buffer(kernel_name, shared=False)
 
             load(magma, data)
 
