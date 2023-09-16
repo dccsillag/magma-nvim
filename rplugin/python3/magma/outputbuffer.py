@@ -63,9 +63,18 @@ class OutputBuffer:
 
         return f"{old}Out[{execution_count}]: {status}"
 
-    def enter(self) -> None:
-        if self.display_window is not None:  # TODO open window if is None?
+    def enter(self, anchor: Position) -> None:
+        if self.display_window is None:
+            if self.options.enter_output_behavior == "open_then_jump":
+                self.show(anchor)
+                return
+            elif self.options.enter_output_behavior == "open_and_jump":
+                self.show(anchor)
+                self.nvim.funcs.nvim_set_current_win(self.display_window)
+                return
+        elif self.options.enter_output_behavior != "no_open":
             self.nvim.funcs.nvim_set_current_win(self.display_window)
+
 
     def clear_interface(self) -> None:
         if self.display_window is not None:
