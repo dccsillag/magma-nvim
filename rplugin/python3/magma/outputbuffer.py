@@ -65,10 +65,10 @@ class OutputBuffer:
 
     def enter(self, anchor: Position) -> None:
         if self.display_window is None:
-            if self.options.enter_output_behavior == "open_then_jump":
+            if self.options.enter_output_behavior == "open_then_enter":
                 self.show(anchor)
                 return
-            elif self.options.enter_output_behavior == "open_and_jump":
+            elif self.options.enter_output_behavior == "open_and_enter":
                 self.show(anchor)
                 self.nvim.funcs.nvim_set_current_win(self.display_window)
                 return
