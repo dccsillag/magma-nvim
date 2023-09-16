@@ -214,6 +214,16 @@ Example usage:
 :MagmaShowOutput
 ```
 
+#### MagmaHideOutput
+
+This closes all currently open output windows
+
+Example usage:
+
+```vim
+:MagmaHideOutput
+```
+
 #### MagmaInterrupt
 
 Send a keyboard interrupt to the kernel. Interrupts the currently running cell and does nothing if not
