@@ -343,6 +343,15 @@ class Magma:
         magma.should_open_display_window = True
         self._update_interface()
 
+    @pynvim.command("MagmaHideOutput", nargs=0, sync=True)  # type: ignore
+    @nvimui  # type: ignore
+    def command_hide_output(self) -> None:
+        magma = self._get_magma(True)
+        assert magma is not None
+
+        magma.should_open_display_window = False
+        self._clear_interface()
+
     @pynvim.command("MagmaSave", nargs="?", sync=True)  # type: ignore
     @nvimui  # type: ignore
     def command_save(self, args: List[str]) -> None:
