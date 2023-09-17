@@ -143,7 +143,7 @@ class MagmaBuffer:
 
     def enter_output(self) -> None:
         if self.selected_cell is not None:
-            self.outputs[self.selected_cell].enter()
+            self.outputs[self.selected_cell].enter(self.selected_cell.end)
 
     def _get_cursor_position(self) -> Position:
         _, lineno, colno, _, _ = self.nvim.funcs.getcurpos()
