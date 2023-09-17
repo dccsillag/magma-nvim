@@ -393,6 +393,22 @@ We provide some `User` autocommands (see `:help User`) for further customization
 - `MagmaDeinitPre`: runs right before `MagmaDeinit` deinitialization happens for a buffer
 - `MagmaDeinitPost`: runs right after `MagmaDeinit` deinitialization happens for a buffer
 
+## Functions
+
+There is a provided function `MagmaEvaluateRange(start_line, end_line)` which evaluates the code
+between the given line numbers (inclusive). This is intended for use in scripts.
+
+### Example Usage:
+```lua
+vim.fn.MagmaEvaluateRange(1, 23)
+```
+
+```vim
+MagmaEvaluateRange(1, 23)
+" from the command line
+:call MagmaEvaluateRange(1, 23)
+```
+
 ## Extras
 
 ### Output Chunks
