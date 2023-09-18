@@ -273,13 +273,15 @@ If that parameter is omitted, then one will be automatically generated using the
 
 #### MagmaEnterOutput
 
-Enter the output window, if it is currently open. You must call this as follows:
+Configured with [magma_enter_output_behavior](#gmagma_enter_output_behavior)
+
+Enter/open the output window. You must call this as follows:
 
 ```vim
 :noautocmd MagmaEnterOutput
 ```
 
-This is escpecially useful when you have a long output (or errors) and wish to inspect it.
+This is especially useful when you have a long output (or errors) and wish to inspect it.
 
 ## Keybindings
 
@@ -305,6 +307,14 @@ nnoremap <silent> <LocalLeader>rq :noautocmd MagmaEnterOutput<CR>
 ## Customization
 
 Customization is done via variables.
+
+### `g:magma_enter_output_behavior`
+
+Configures the behavior of [MagmaEnterOutput](#magmaenteroutput)
+
+- `"open_then_enter"` (default) -- open the window if it's closed. Enter the window if it's already open
+- `"open_and_enter"` -- open and enter the window if it's closed. Otherwise enter as normal
+- `"no_open"` -- enter the window when it's open, do nothing if it's closed
 
 ### `g:magma_image_provider`
 

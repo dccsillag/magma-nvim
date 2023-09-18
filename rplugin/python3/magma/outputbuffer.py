@@ -63,8 +63,16 @@ class OutputBuffer:
 
         return f"{old}Out[{execution_count}]: {status}"
 
-    def enter(self) -> None:
-        if self.display_window is not None:  # TODO open window if is None?
+    def enter(self, anchor: Position) -> None:
+        if self.display_window is None:
+            if self.options.enter_output_behavior == "open_then_enter":
+                self.show(anchor)
+                return
+            elif self.options.enter_output_behavior == "open_and_enter":
+                self.show(anchor)
+                self.nvim.funcs.nvim_set_current_win(self.display_window)
+                return
+        else:
             self.nvim.funcs.nvim_set_current_win(self.display_window)
 
     def clear_interface(self) -> None:
@@ -99,7 +107,7 @@ class OutputBuffer:
             lines = lines_str.rstrip().split("\n")
             actualLines = []
             for line in lines:
-                parts = line.split('\r')
+                parts = line.split("\r")
                 last = parts[-1]
                 if last != "":
                     actualLines.append(last)
