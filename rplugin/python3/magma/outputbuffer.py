@@ -75,7 +75,6 @@ class OutputBuffer:
         else:
             self.nvim.funcs.nvim_set_current_win(self.display_window)
 
-
     def clear_interface(self) -> None:
         if self.display_window is not None:
             self.nvim.funcs.nvim_win_close(self.display_window, True)
@@ -108,7 +107,7 @@ class OutputBuffer:
             lines = lines_str.rstrip().split("\n")
             actualLines = []
             for line in lines:
-                parts = line.split('\r')
+                parts = line.split("\r")
                 last = parts[-1]
                 if last != "":
                     actualLines.append(last)
