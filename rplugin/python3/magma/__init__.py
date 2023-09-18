@@ -152,7 +152,7 @@ class Magma:
 
         return magma
 
-    @pynvim.command("MagmaInit", nargs="?", sync=True, complete="file")  # type: ignore
+    @pynvim.command("MagmaInit", nargs="?", sync=True, complete='file')  # type: ignore
     @nvimui  # type: ignore
     def command_init(self, args: List[str]) -> None:
         self._initialize_if_necessary()
@@ -265,17 +265,6 @@ class Magma:
             ),
         )
 
-        self._do_evaluate(span)
-
-    @pynvim.function("MagmaEvaluateRange", sync=True)  # type: ignore
-    @nvimui  # type: ignore
-    def evaulate_range(self, *args) -> None:
-        # self.nvim.current.line = f"args: {args}"
-        start_line, end_line = args[0]
-        span = (
-            (start_line - 1, 0),
-            (end_line - 1, len(self.nvim.funcs.getline(end_line))),
-        )
         self._do_evaluate(span)
 
     @pynvim.command("MagmaEvaluateOperator", sync=True)  # type: ignore
@@ -498,10 +487,6 @@ class Magma:
             DynamicPosition(
                 self.nvim, self.extmark_namespace, bufno, start - 1, 0
             ),
-            DynamicPosition(
-                self.nvim, self.extmark_namespace, bufno, end - 1, -1
-            ),
+            DynamicPosition(self.nvim, self.extmark_namespace, bufno, end - 1, -1),
         )
-        magma.outputs[span] = OutputBuffer(
-            self.nvim, self.canvas, self.options
-        )
+        magma.outputs[span] = OutputBuffer(self.nvim, self.canvas, self.options)
