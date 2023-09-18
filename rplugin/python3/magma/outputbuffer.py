@@ -72,7 +72,7 @@ class OutputBuffer:
                 self.show(anchor)
                 self.nvim.funcs.nvim_set_current_win(self.display_window)
                 return
-        elif self.options.enter_output_behavior != "no_open":
+        else:
             self.nvim.funcs.nvim_set_current_win(self.display_window)
 
 
