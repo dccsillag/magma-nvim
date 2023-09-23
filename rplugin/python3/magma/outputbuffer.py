@@ -113,24 +113,24 @@ class OutputBuffer:
         # Open output window
         assert self.display_window is None
         if win_row < win_height:
+            opts = {
+                "relative": "win",
+                "col": 0,
+                "row": win_row,
+                "width": win_width,
+                "height": min(win_height - win_row, lineno + 1),
+                "anchor": "NW",
+                "border": "rounded",
+                "focusable": False,
+            }
+            if not self.options.output_window_borders:
+                opts["style"] = "minimal"
+                opts["border"] = "none"
+
             self.display_window = self.nvim.funcs.nvim_open_win(
                 self.display_buffer.number,
                 False,
-                {
-                    "relative": "win",
-                    "col": 0,
-                    "row": win_row,
-                    "width": win_width,
-                    "height": min(win_height - win_row, lineno + 1),
-                    "anchor": "NW",
-                    "style": None
-                    if self.options.output_window_borders
-                    else "minimal",
-                    "border": "rounded"
-                    if self.options.output_window_borders
-                    else "none",
-                    "focusable": False,
-                },
+                opts,
             )
             # self.nvim.funcs.nvim_win_set_option(
             #     self.display_window, "wrap", True
