@@ -102,6 +102,7 @@ class NoCanvas(Canvas):
     ) -> None:
         pass
 
+
 # I think this class will end up being calls to equivalent lua functions in some lua file
 # somewhere
 class ImageNvimCanvas(Canvas):
@@ -119,26 +120,15 @@ class ImageNvimCanvas(Canvas):
         self.next_id = 0
 
     def init(self) -> None:
-        # TODO:
-        # there's a better way to call lua functions, I think that I have to put those lua functions
-        # in a different spot tho, like a special folder
-        self.nvim.exec_lua("""
-            local ok, image pcall(require, 'image')
-            Image = {}
-            if not ok then
-                nvim.err_writeln('[magme-nvim]: image.nvim was not found')
-            else
-                Image.api = image
-                Image.images = {}
-            end
-        """)
+        self.nvim.exec_lua("_image = require('load_image_nvim')")
+        self.image_api = self.nvim.lua._image
+        # TODO: cleanup
+        # test_img = self.image_api.from_file("~/Downloads/neovim_logo.png")
+        # self.image_api.render(test_img)
 
     def deinit(self) -> None:
-        self.nvim.exec_lua("""
-            for key, img in ipairs(Image.images) do
-                img:clear()
-            end
-        """)
+        self.image_api.clear_all()
+        self.images.clear()
 
     def present(self) -> None:
         # images to both show and hide should be ignored
@@ -147,15 +137,10 @@ class ImageNvimCanvas(Canvas):
         )
         self.to_make_invisible.difference_update(self.to_make_visible)
         for identifier in self.to_make_invisible:
-            # TODO: hide image
-            # self.nvim.async_call(hide_fn, self.images[identifier])
-            pass
+            self.image_api.clear(identifier)
 
         for identifier in to_work_on:
-            # TODO: move or show
-            # image = self.images[identifier]
-            # self.nvim.async_call(fn, self.nvim, image)
-            pass
+            self.image_api.render(identifier)
 
         self.visible.update(self.to_make_visible)
         self.to_make_invisible.clear()
@@ -175,29 +160,17 @@ class ImageNvimCanvas(Canvas):
         width: int,
         height: int,
     ) -> None:
-
-        self.nvim.exec_lua(f"""
-        Image.images[{identifier}]= api.from_file("https://gist.ro/s/remote.png", {{
-          id = "{identifier}", -- optional, defaults to a random string
-          window = 1000, -- optional, binds image to a window and its bounds
-          buffer = 1000, -- optional, binds image to a buffer (paired with window binding)
-          with_virtual_padding = true, -- optional, pads vertically with extmarks
-        }})
-        """)
-        if identifier not in self.images:
-            self.images[identifier] = KittyImage(
-                id=self.next_id,
-                path=path,
-                row=y,
-                col=x,
-                width=width,
-                height=height,
-                nvim=self.nvim,
+        if path not in self.images:
+            self.image_api.from_file(
+                path,
+                {
+                    "id": identifier,
+                    "x": x,
+                    "y": y,
+                    "width": width,
+                    "height": height,
+                },
             )
-            self.next_id += 1
-        else:
-            self.images[identifier].path = path
-        self.to_make_visible.add(identifier)
 
 
 def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:
