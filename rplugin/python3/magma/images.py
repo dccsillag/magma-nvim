@@ -1,7 +1,6 @@
-from typing import Set, Dict
-import os
+import math
+from typing import Set
 from abc import ABC, abstractmethod
-import time
 
 from pynvim import Nvim
 
@@ -43,15 +42,20 @@ class Canvas(ABC):
         """
 
     @abstractmethod
+    def img_height(self, identifier: str) -> int:
+        """
+        Get the height of an image in terminal rows.
+        """
+
+    @abstractmethod
     def add_image(
         self,
         path: str,
         identifier: str,
         x: int,
         y: int,
-        width: int,
-        height: int,
-    ) -> None:
+        bufnr: int,
+    ) -> str:
         """
         Add an image to the canvas.
 
@@ -68,10 +72,11 @@ class Canvas(ABC):
         - y: int
           Row number of where the image is supposed to be drawn at (top-right
           corner).
-        - width: int
-          The desired width for the image, in terminal columns.
-        - height: int
-          The desired height for the image, in terminal rows.
+        - bufnr: int
+          The buffer number for the buffer in which to draw the image.
+
+        Returns:
+        str the identifier for the image
         """
 
 
@@ -91,14 +96,16 @@ class NoCanvas(Canvas):
     def clear(self) -> None:
         pass
 
+    def img_height(self, _indentifier: str) -> int:
+        return 0
+
     def add_image(
         self,
-        path: str,
-        identifier: str,
-        x: int,
-        y: int,
-        width: int,
-        height: int,
+        _path: str,
+        _identifier: str,
+        _x: int,
+        _y: int,
+        _window: int,
     ) -> None:
         pass
 
@@ -120,11 +127,10 @@ class ImageNvimCanvas(Canvas):
         self.next_id = 0
 
     def init(self) -> None:
-        self.nvim.exec_lua("_image = require('load_image_nvim')")
+        self.nvim.exec_lua("_image = require('load_image_nvim').image_api")
+        self.nvim.exec_lua("_image_utils = require('load_image_nvim').image_utils")
         self.image_api = self.nvim.lua._image
-        # TODO: cleanup
-        # test_img = self.image_api.from_file("~/Downloads/neovim_logo.png")
-        # self.image_api.render(test_img)
+        self.image_utils = self.nvim.lua._image_utils
 
     def deinit(self) -> None:
         self.image_api.clear_all()
@@ -147,9 +153,13 @@ class ImageNvimCanvas(Canvas):
         self.to_make_visible.clear()
 
     def clear(self) -> None:
-        for identifier in self.visible:
-            self.to_make_invisible.add(identifier)
-        self.visible.clear()
+        for img in self.visible:
+            self.image_api.clear(img)
+
+    def img_height(self, identifier: str) -> int:
+        img_size_px = self.image_api.image_size(identifier)
+        cell_size_px = self.image_utils.cell_size()
+        return math.ceil(img_size_px['height'] / cell_size_px['height'])
 
     def add_image(
         self,
@@ -157,20 +167,22 @@ class ImageNvimCanvas(Canvas):
         identifier: str,
         x: int,
         y: int,
-        width: int,
-        height: int,
-    ) -> None:
+        bufnr: int,
+    ) -> str:
         if path not in self.images:
-            self.image_api.from_file(
+            img = self.image_api.from_file(
                 path,
                 {
                     "id": identifier,
+                    "buffer": bufnr,
+                    "with_virtual_padding": True,
                     "x": x,
                     "y": y,
-                    "width": width,
-                    "height": height,
                 },
             )
+            self.to_make_visible.add(img)
+            return img
+        return path
 
 
 def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:

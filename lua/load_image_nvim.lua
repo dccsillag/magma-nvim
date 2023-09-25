@@ -10,9 +10,10 @@ print('image.nvim loaded')
 
 local image_api = {}
 local images = {}
+local utils = {}
 
-image_api.from_file = function(path)
-  images[path] = image.from_file(path)
+image_api.from_file = function(path, opts)
+  images[path] = image.from_file(path, opts or {})
   return path
 end
 
@@ -35,4 +36,22 @@ image_api.move = function(identifier, x, y)
   images[identifier]:move(x, y)
 end
 
-return image_api
+image_api.update_window = function(identifier, window)
+  local img = images[identifier]
+  img.window = window
+  img:clear()
+end
+
+image_api.image_size = function(identifier)
+  local img = images[identifier]
+  return { width = img.image_width, height = img.image_height }
+end
+
+------ utils --------
+
+utils.cell_size = function()
+  local size = require("image.utils.term").get_size()
+  return { width = size.cell_width, height = size.cell_height }
+end
+
+return { image_api = image_api, image_utils = utils }

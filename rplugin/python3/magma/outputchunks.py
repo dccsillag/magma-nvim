@@ -15,6 +15,8 @@ import re
 import textwrap
 import os
 
+from pynvim import Nvim
+
 from magma.images import Canvas
 from magma.options import MagmaOptions
 
@@ -26,11 +28,12 @@ class OutputChunk(ABC):
     @abstractmethod
     def place(
         self,
+        bufnr: int,
         options: MagmaOptions,
         lineno: int,
         shape: Tuple[int, int, int, int],
         canvas: Canvas,
-    ) -> str:
+    ) -> Tuple[str, int]:
         pass
 
 # Adapted from [https://stackoverflow.com/a/14693789/4803382]:
@@ -51,11 +54,12 @@ class TextOutputChunk(OutputChunk):
 
     def place(
         self,
+        bufnr: int,
         options: MagmaOptions,
         _: int,
         shape: Tuple[int, int, int, int],
         __: Canvas,
-    ) -> str:
+    ) -> Tuple[str, int]:
         text = self._cleanup_text(self.text)
         if options.wrap_output:
             win_width = shape[2]
@@ -63,7 +67,7 @@ class TextOutputChunk(OutputChunk):
                 "\n".join(textwrap.wrap(line, width=win_width))
                 for line in text.split("\n")
             )
-        return text
+        return text, 0
 
 
 class TextLnOutputChunk(TextOutputChunk):
@@ -109,76 +113,25 @@ class ImageOutputChunk(OutputChunk):
         self.img_checksum = img_checksum
         self.img_width, self.img_height = img_shape
 
-    def _get_char_pixelsize(self) -> Optional[Tuple[int, int]]:
-        import termios
-        import fcntl
-        import struct
-
-        # FIXME: This is not really in Ueberzug's public API.
-        #        We should move this function into this codebase.
-        try:
-            from ueberzug.process import get_pty_slave
-        except ImportError:
-            return None
-
-        pty = get_pty_slave(os.getppid())
-        assert pty is not None
-
-        with open(pty) as fd_pty:
-            farg = struct.pack("HHHH", 0, 0, 0, 0)
-            fretint = fcntl.ioctl(fd_pty, termios.TIOCGWINSZ, farg)
-            rows, cols, xpixels, ypixels = struct.unpack("HHHH", fretint)
-
-            if xpixels == 0 and ypixels == 0:
-                return None
-
-            return max(1, xpixels // cols), max(1, ypixels // rows)
-
-    def _determine_n_lines(
-        self, lineno: int, shape: Tuple[int, int, int, int]
-    ) -> int:
-        _, y, w, h = shape
-
-        max_nlines = max(0, (h - y) - lineno - 1)
-
-        maybe_pixelsizes = self._get_char_pixelsize()
-        if maybe_pixelsizes is not None:
-            xpixels, ypixels = maybe_pixelsizes
-
-            if (
-                (self.img_width / xpixels) / (self.img_height / ypixels)
-            ) * max_nlines <= w:
-                nlines = max_nlines
-            else:
-                nlines = floor(
-                    ((self.img_height / ypixels) / (self.img_width / xpixels))
-                    * w
-                )
-            nlines = min(nlines, self.img_height // ypixels)
-        else:
-            nlines = max_nlines // 3
-
-        return nlines
 
     def place(
         self,
+        bufnr: int,
         _: MagmaOptions,
         lineno: int,
         shape: Tuple[int, int, int, int],
         canvas: Canvas,
-    ) -> str:
-        x, y, w, h = shape
-        nlines = self._determine_n_lines(lineno, shape)
+    ) -> Tuple[str, int]:
+        x, _y, win_w, win_h = shape
 
-        canvas.add_image(
+        img = canvas.add_image(
             self.img_path,
             self.img_checksum,
             x=x,
-            y=y + lineno + 1,  # TODO: consider scroll in the display window
-            width=w,
-            height=nlines,
+            y=lineno + 1,
+            bufnr=bufnr,
         )
-        return "\n" * nlines
+        return "", canvas.img_height(img)
 
 
 class OutputStatus(Enum):
