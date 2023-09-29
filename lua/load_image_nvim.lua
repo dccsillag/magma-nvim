@@ -19,7 +19,15 @@ end
 
 image_api.render = function(identifier, geometry)
   geometry = geometry or {}
-  images[identifier]:render(geometry)
+  local img = images[identifier]
+
+  -- a way to render images in windows when only their buffer is set
+  if img.buffer and not img.window then
+    local buf_win = vim.fn.getbufinfo(img.buffer)[1].windows
+    if #buf_win > 0 then img.window = buf_win[1] end
+  end
+
+  img:render(geometry)
 end
 
 image_api.clear = function(identifier)

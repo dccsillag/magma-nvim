@@ -63,13 +63,13 @@ class Magma:
 
     def _set_autocommands(self) -> None:
         self.nvim.command("augroup magma")
-        self.nvim.command("  autocmd CursorMoved  * call MagmaOnCursorMoved()")
-        self.nvim.command("  autocmd CursorMovedI * call MagmaOnCursorMoved()")
-        self.nvim.command("  autocmd WinScrolled  * call MagmaOnWinScrolled()")
-        self.nvim.command("  autocmd BufEnter     * call MagmaUpdateInterface()")
-        self.nvim.command("  autocmd BufLeave     * call MagmaClearInterface()")
-        self.nvim.command("  autocmd BufUnload    * call MagmaOnBufferUnload()")
-        self.nvim.command("  autocmd ExitPre      * call MagmaOnExitPre()")
+        self.nvim.command("autocmd CursorMoved  * call MagmaOnCursorMoved()")
+        self.nvim.command("autocmd CursorMovedI * call MagmaOnCursorMoved()")
+        self.nvim.command("autocmd WinScrolled  * call MagmaOnWinScrolled()")
+        self.nvim.command("autocmd BufEnter     * call MagmaUpdateInterface()")
+        self.nvim.command("autocmd BufLeave     * call MagmaClearInterface()")
+        self.nvim.command("autocmd BufUnload    * call MagmaOnBufferUnload()")
+        self.nvim.command("autocmd ExitPre      * call MagmaOnExitPre()")
         self.nvim.command("augroup END")
 
     def _deinitialize(self) -> None:
@@ -122,7 +122,9 @@ class Magma:
 
         magma.on_cursor_moved(scrolled)
 
-    def _ask_for_choice(self, preface: str, options: List[str]) -> Optional[str]:
+    def _ask_for_choice(
+        self, preface: str, options: List[str]
+    ) -> Optional[str]:
         index = self.nvim.funcs.inputlist(
             [preface]
             + [f"{i+1}. {option}" for i, option in enumerate(options)]

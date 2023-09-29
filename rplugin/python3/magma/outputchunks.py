@@ -122,12 +122,12 @@ class ImageOutputChunk(OutputChunk):
         shape: Tuple[int, int, int, int],
         canvas: Canvas,
     ) -> Tuple[str, int]:
-        x, _y, win_w, win_h = shape
+        _x, _y, win_w, win_h = shape
 
         img = canvas.add_image(
             self.img_path,
             self.img_checksum,
-            x=x,
+            x=0,
             y=lineno + 1,
             bufnr=bufnr,
         )
