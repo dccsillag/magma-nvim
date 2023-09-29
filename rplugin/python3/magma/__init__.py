@@ -282,7 +282,6 @@ class Magma:
         self._initialize_if_necessary()
 
         self.nvim.options["operatorfunc"] = "MagmaOperatorfunc"
-        self.nvim.out_write("g@\n")
 
     @pynvim.command("MagmaEvaluateLine", nargs=0, sync=True)  # type: ignore
     @nvimui  # type: ignore

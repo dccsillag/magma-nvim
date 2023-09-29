@@ -6,8 +6,6 @@ if not ok then
   return
 end
 
-print('image.nvim loaded')
-
 local image_api = {}
 local images = {}
 local utils = {}

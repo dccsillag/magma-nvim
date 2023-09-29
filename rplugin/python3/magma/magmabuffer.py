@@ -143,6 +143,8 @@ class MagmaBuffer:
 
     def enter_output(self) -> None:
         if self.selected_cell is not None:
+            if self.options.enter_output_behavior != "no_open":
+                self.should_open_display_window = True
             self.outputs[self.selected_cell].enter(self.selected_cell.end)
 
     def _get_cursor_position(self) -> Position:
@@ -207,9 +209,8 @@ class MagmaBuffer:
 
         if self.options.automatically_open_output:
             self.should_open_display_window = True
-        else:
-            if self.selected_cell != selected_cell:
-                self.should_open_display_window = False
+        elif self.selected_cell != selected_cell:
+            self.should_open_display_window = False
 
         self.selected_cell = selected_cell
 
