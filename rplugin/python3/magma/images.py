@@ -2,7 +2,7 @@ import math
 from typing import Set
 from abc import ABC, abstractmethod
 
-from pynvim import Nvim
+from pynvim import Nvim, logging
 
 from magma.utils import MagmaException
 
@@ -128,7 +128,9 @@ class ImageNvimCanvas(Canvas):
 
     def init(self) -> None:
         self.nvim.exec_lua("_image = require('load_image_nvim').image_api")
-        self.nvim.exec_lua("_image_utils = require('load_image_nvim').image_utils")
+        self.nvim.exec_lua(
+            "_image_utils = require('load_image_nvim').image_utils"
+        )
         self.image_api = self.nvim.lua._image
         self.image_utils = self.nvim.lua._image_utils
 
@@ -159,7 +161,7 @@ class ImageNvimCanvas(Canvas):
     def img_height(self, identifier: str) -> int:
         img_size_px = self.image_api.image_size(identifier)
         cell_size_px = self.image_utils.cell_size()
-        return math.ceil(img_size_px['height'] / cell_size_px['height'])
+        return math.ceil(img_size_px["height"] / cell_size_px["height"])
 
     def add_image(
         self,
@@ -191,4 +193,9 @@ def get_canvas_given_provider(name: str, nvim: Nvim) -> Canvas:
     elif name == "image.nvim":
         return ImageNvimCanvas(nvim)
     else:
-        raise MagmaException(f"Unknown image provider: '{name}'")
+        nvim.api.notify(
+            f"[Magma] unknown image provider: `{name}`",
+            logging.ERROR,
+            {"title": "Magma"},
+        )
+        return NoCanvas()

@@ -25,7 +25,12 @@ image_api.render = function(identifier, geometry)
     if #buf_win > 0 then img.window = buf_win[1] end
   end
 
-  img:render(geometry)
+  -- only render when the window is visible
+  if img.window and vim.api.nvim_win_is_valid(img.window) then
+    img:render(geometry)
+  end
+
+  -- img:render(geometry)
 end
 
 image_api.clear = function(identifier)
@@ -40,12 +45,6 @@ end
 
 image_api.move = function(identifier, x, y)
   images[identifier]:move(x, y)
-end
-
-image_api.update_window = function(identifier, window)
-  local img = images[identifier]
-  img.window = window
-  img:clear()
 end
 
 image_api.image_size = function(identifier)
