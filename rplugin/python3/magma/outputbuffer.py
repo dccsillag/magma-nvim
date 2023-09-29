@@ -1,4 +1,3 @@
-import math
 from typing import Optional
 
 from pynvim import Nvim

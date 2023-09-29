@@ -1,7 +1,0 @@
-{
-    "diagnostics.globals": [
-        "vim",
-        "require",
-        "_image"
-    ]
-}

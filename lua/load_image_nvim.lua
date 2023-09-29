@@ -2,7 +2,7 @@
 local ok, image = pcall(require, "image")
 
 if not ok then
-  vim.api.nvim_err_writeln("[magma.nvim] `image.nvim` not found")
+  vim.api.nvim_err_writeln("[Magma] `image.nvim` not found")
   return
 end
 
@@ -29,8 +29,6 @@ image_api.render = function(identifier, geometry)
   if img.window and vim.api.nvim_win_is_valid(img.window) then
     img:render(geometry)
   end
-
-  -- img:render(geometry)
 end
 
 image_api.clear = function(identifier)
