@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from pynvim import Nvim
 from pynvim.api import Buffer
@@ -119,7 +119,8 @@ class OutputBuffer:
                 lines_str += chunktext
                 lineno += chunktext.count("\n")
                 virtual_lines += virt_lines
-            lines = lines_str.split("\n")
+
+            lines = handle_progress_bars(lines_str)
             lineno = len(lines)
         else:
             lines = [lines_str]
@@ -151,3 +152,18 @@ class OutputBuffer:
                 },
             )
             self.canvas.present()
+
+def handle_progress_bars(line_str: str) -> List[str]:
+    """ Progress bars like tqdm use special chars (`\\r`) and some trick to work
+    This is fine for the terminal, but in a text editor we have so do some extra work
+    """
+    actual_lines = []
+    lines = line_str.split("\n")
+    for line in lines:
+        parts = line.split('\r')
+        last = parts[-1]
+        if last != "":
+            actual_lines.append(last)
+            lines = actual_lines
+
+    return actual_lines
