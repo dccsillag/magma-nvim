@@ -332,6 +332,13 @@ class Magma:
         magma.should_open_display_window = True
         self._update_interface()
 
+    @pynvim.command("MagmaToggleAutomaticOutput", sync=True)  # type: ignore
+    @nvimui  # type: ignore
+    def command_toggle_output(self) -> None:
+        self.options.automatically_open_output = (
+            not self.options.automatically_open_output
+        )
+
     @pynvim.command("MagmaSave", nargs="?", sync=True)  # type: ignore
     @nvimui  # type: ignore
     def command_save(self, args: List[str]) -> None:
